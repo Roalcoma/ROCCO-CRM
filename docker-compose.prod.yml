@@ -8,6 +8,14 @@ services:
     image: rocco-crm:latest
     container_name: crm_app
     restart: unless-stopped
+    mem_limit: 1g
+    memswap_limit: 2g
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3100/health >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     ports:
       - "3100:3100"
     environment:
@@ -57,6 +65,8 @@ services:
     image: postgres:17-alpine
     container_name: crm_db
     restart: unless-stopped
+    mem_limit: 1g
+    memswap_limit: 2g
     environment:
       POSTGRES_USER:     crm
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
