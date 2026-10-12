@@ -38,6 +38,8 @@ const testEnv: Record<string, string> = {
   TELEGRAM_BOT_TOKEN: '',
   TELEGRAM_CHAT_ID: '',
   TEST_BASE_URL: BASE,
+  // /metrics interno (services/metrics.ts) en un puerto propio para no chocar con el servidor de desarrollo
+  METRICS_PORT: process.env.TEST_METRICS_PORT ?? '9474',
   TEST_FAKE_URL: FAKE,
   // Medios de automatizaciones subidos en los tests: fuera del repo
   MEDIA_DIR: process.env.TEST_MEDIA_DIR ?? join(tmpdir(), 'rocco-test-media'),

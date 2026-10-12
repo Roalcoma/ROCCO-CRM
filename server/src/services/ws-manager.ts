@@ -129,6 +129,19 @@ export function initWS(httpServer: Server) {
   return wss;
 }
 
+// Para las métricas (services/metrics.ts): conexiones abiertas y usuarios distintos por organización.
+export function onlineStats(): Map<string, { connections: number; users: number }> {
+  const byOrg = new Map<string, { connections: number; users: Set<string> }>();
+  for (const c of clients) {
+    if (c.ws.readyState !== WebSocket.OPEN) continue;
+    const s = byOrg.get(c.organizationId) ?? { connections: 0, users: new Set<string>() };
+    s.connections++;
+    s.users.add(c.userId);
+    byOrg.set(c.organizationId, s);
+  }
+  return new Map([...byOrg].map(([org, s]) => [org, { connections: s.connections, users: s.users.size }]));
+}
+
 // Envía un evento JSON a los clientes de una organización que tengan permiso para verlo.
 export function broadcast(organizationId: string, type: string, data: unknown) {
   const payload = JSON.stringify({ type, data });

@@ -41,6 +41,7 @@ import { automationMediaRouter, servePublicMedia } from './routes/automation-med
 import { resumeTimedRuns, recoverStuckRuns } from './services/automation-engine.ts';
 import { runRetention } from './services/retention.ts';
 import { initWS, issueWsTicket } from './services/ws-manager.ts';
+import { httpMetrics, startMetricsServer } from './services/metrics.ts';
 import { signMediaToken, verifyMediaToken } from './auth/tokens.ts';
 import { validateSession } from './auth/session.ts';
 import { pool } from './db.ts';
@@ -56,6 +57,9 @@ installErrorAlerts();
 const app = express();
 // Detrás de Cloudflare: la IP real del cliente viene en X-Forwarded-For (lo necesita el rate limit)
 app.set('trust proxy', 1);
+
+// Métricas HTTP para Prometheus (antes de CORS y del rate limit, para contar también los rechazos)
+app.use(httpMetrics);
 
 // Seguridad: headers HTTP (XSS, clickjacking, MIME sniffing, etc.)
 app.use(helmet({
@@ -294,6 +298,8 @@ function every(name: string, task: () => Promise<unknown>, ms: number, runNow = 
 // Crear servidor HTTP compartido (Express + WebSocket en el mismo puerto).
 const server = http.createServer(app);
 initWS(server);
+// /metrics en un puerto interno sin publicar (lo lee Prometheus por crm_net)
+startMetricsServer();
 
 server.listen(env.port, () => {
   console.log(`API en http://localhost:${env.port} | WS en ws://localhost:${env.port}/ws`);
