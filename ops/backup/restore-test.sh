@@ -1,16 +1,19 @@
 #!/usr/bin/env bash
-# Prueba de restauración: baja de Drive el último backup del CRM, lo descifra, lo restaura en
+# Prueba de restauración: baja del remoto (BACKUP_REMOTE) el último backup del CRM, lo descifra, lo restaura en
 # un Postgres temporal y compara el número de filas con la BD de producción.
 set -Eeuo pipefail
 DIR="$(cd "$(dirname "$0")" && pwd)"
-WORK="$(mktemp -d)"; trap 'docker rm -f crm_restore_test >/dev/null 2>&1 || true; rm -rf "$WORK"' EXIT
+# shellcheck disable=SC1091
+source "$DIR/.env"
+REMOTE="${BACKUP_REMOTE:-gdrive:rocco-backups}"
+WORK="$(mktemp -d)"; trap 'docker rm -fv crm_restore_test >/dev/null 2>&1 || true; rm -rf "$WORK"' EXIT
 
 rclone() { docker run --rm --user "$(id -u):$(id -g)" -v "$DIR/rclone:/config/rclone" -v "$WORK:/data" rclone/rclone:latest "$@"; }
 
-LAST="$(rclone lsf gdrive:rocco-backups --include 'crm_*.dump.gpg' | sort | tail -1)"
-[ -n "$LAST" ] || { echo "No hay backups en Drive"; exit 1; }
-echo "Último backup en Drive: $LAST"
-rclone copy "gdrive:rocco-backups/$LAST" /data
+LAST="$(rclone lsf "$REMOTE" --include 'crm_*.dump.gpg' | sort | tail -1)"
+[ -n "$LAST" ] || { echo "No hay backups en $REMOTE"; exit 1; }
+echo "Último backup en $REMOTE: $LAST"
+rclone copy "$REMOTE/$LAST" /data
 gpg --batch --quiet --pinentry-mode loopback --passphrase-file "$DIR/.passphrase" -d "$WORK/$LAST" > "$WORK/crm.dump"
 
 docker run -d --name crm_restore_test -e POSTGRES_PASSWORD=test -e POSTGRES_USER=crm -e POSTGRES_DB=crm postgres:17-alpine >/dev/null
