@@ -96,6 +96,15 @@ html {
   background: var(--color-canvas);
 }
 
+/* Dentro del CRM la página no se desplaza (cada vista tiene su propio scroll): sin esto iOS deja
+   arrastrar todo el documento con el rebote y la barra inferior se mueve. Las páginas públicas no
+   llevan la clase y siguen con scroll normal. */
+html.app-shell, html.app-shell body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 /* iPhone hace zoom al enfocar campos con letra < 16px: en móvil los campos van a 16px */
 @media (max-width: 767px) {
   input:not([type='checkbox']):not([type='radio']):not([type='range']),

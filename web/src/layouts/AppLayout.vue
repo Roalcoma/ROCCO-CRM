@@ -105,11 +105,13 @@ function handleDocClick(e: MouseEvent) {
   }
 }
 onMounted(() => {
+  document.documentElement.classList.add('app-shell');
   document.addEventListener('mousedown', handleDocClick);
   checkMobile();
   window.addEventListener('resize', checkMobile);
 });
 onUnmounted(() => {
+  document.documentElement.classList.remove('app-shell');
   document.removeEventListener('mousedown', handleDocClick);
   window.removeEventListener('resize', checkMobile);
 });
