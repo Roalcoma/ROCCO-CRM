@@ -10,7 +10,7 @@ import {
 import { api } from '../api';
 import { useDialog } from '../composables/useDialog';
 import { hideMobileTabBar } from '../composables/useMobileNav';
-import type { Conversation, ConvMessage, Contact, Pipeline, Stage, AdRef } from '../types';
+import type { Conversation, ConvMessage, Contact, Pipeline, Stage, AdRef, WaNumber } from '../types';
 import { useWs } from '../composables/useWs';
 import LoadingState from '../components/LoadingState.vue';
 import Spinner from '../components/Spinner.vue';
@@ -80,6 +80,11 @@ on('message:new', (raw) => {
 on('conversation:update', (raw) => {
   const updated = raw as Conversation;
   const idx = conversations.value.findIndex(c => c.id === updated.id);
+  // Con un número filtrado, los chats de otros números no entran en la lista
+  if (numberFilter.value && updated.wa_instance_id !== numberFilter.value) {
+    if (idx !== -1) conversations.value.splice(idx, 1);
+    return;
+  }
   if (idx !== -1) conversations.value.splice(idx, 1, updated);
   else conversations.value.unshift(updated);
 });
@@ -141,7 +146,10 @@ const newChatSearching = ref(false);
 const newChatShowManual = ref(false);
 let newChatSearchTimer: ReturnType<typeof setTimeout> | null = null;
 
+// Número por el que se abre un chat nuevo: el filtrado, o el principal
+const newChatNumber = ref('');
 async function openNewChatModal() {
+  newChatNumber.value = numberFilter.value || numbers.value.find(n => n.is_default)?.id || numbers.value[0]?.id || '';
   newChatSearch.value = '';
   newChatShowManual.value = false;
   newPhone.value = '';
@@ -221,8 +229,34 @@ const PAGE_SIZE = 100;
 const totalConversations = ref(0);
 const loadingMore = ref(false);
 
+// ── Números de WhatsApp: filtro y etiqueta de color por número ────────────────
+// Con más de un número conectado, cada chat muestra por cuál entró (franja + etiqueta con su color)
+// y la bandeja se puede filtrar por número. El filtro se recuerda en este navegador.
+const NUMBER_KEY = 'rocco.convNumber';
+const numbers = ref<WaNumber[]>([]);
+const multiNumber = computed(() => numbers.value.length > 1);
+const numberById = computed(() => Object.fromEntries(numbers.value.map(n => [n.id, n])) as Record<string, WaNumber>);
+const numberFilter = ref<string>((() => { try { return localStorage.getItem(NUMBER_KEY) ?? ''; } catch { return ''; } })());
+const NUMBER_FALLBACK_COLOR = '#4A5566';
+function convNumber(c: Conversation | null | undefined): WaNumber | null {
+  if (!multiNumber.value || !c || (c.channel && c.channel !== 'whatsapp') || !c.wa_instance_id) return null;
+  return numberById.value[c.wa_instance_id] ?? null;
+}
+const numberColor = (n: WaNumber | null) => n?.color || NUMBER_FALLBACK_COLOR;
+async function loadNumbers() {
+  const r = await api.get<{ numbers: WaNumber[] }>('/conversations/numbers').catch(() => null);
+  numbers.value = r?.numbers ?? [];
+  // Un número guardado que ya no existe deja de filtrar
+  if (numberFilter.value && !numberById.value[numberFilter.value]) numberFilter.value = '';
+}
+watch(numberFilter, v => {
+  try { localStorage.setItem(NUMBER_KEY, v); } catch { /* sin storage */ }
+  loadConversations();
+});
+
 function listParams(offset = 0) {
   const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(offset) });
+  if (numberFilter.value) params.set('wa_instance_id', numberFilter.value);
   if (inboxTab.value === 'unread')   { params.set('unread', 'true'); params.set('status', 'all'); }
   else if (inboxTab.value === 'starred') params.set('starred', 'true');
   else if (inboxTab.value === 'all')  params.set('status', 'all');
@@ -290,7 +324,7 @@ function scrollToBottom(smooth = false) {
 const route = useRoute();
 
 onMounted(async () => {
-  await loadConversations();
+  await Promise.all([loadNumbers(), loadConversations()]);
   // Si llegamos desde una oportunidad/contacto con contact_id, auto-seleccionar (o crear) conversación
   const contactIdParam = route.query.contact_id as string | undefined;
   if (contactIdParam) {
@@ -372,6 +406,7 @@ async function createChat(contactId?: string) {
       phone: newPhone.value.trim(),
       display_name: newName.value.trim() || undefined,
       contact_id: contactId ?? undefined,
+      wa_instance_id: multiNumber.value ? newChatNumber.value || undefined : undefined,
     });
     await loadConversations();
     await selectConversation(res.id);
@@ -719,6 +754,29 @@ async function syncNames() {
           <input v-model="q" @input="onSearch" placeholder="Buscar…" class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-700 placeholder-slate-600 focus:border-primary focus:bg-white focus:outline-none" />
         </div>
 
+        <!-- Filtro por número de WhatsApp (solo con más de un número) -->
+        <div v-if="multiNumber" class="number-filter -mx-4 mb-3 flex gap-1.5 overflow-x-auto px-4" role="radiogroup" aria-label="Filtrar por número">
+          <button
+            class="flex flex-shrink-0 cursor-pointer items-center gap-1.5 border px-3 py-1.5 text-[13px] font-semibold"
+            :class="!numberFilter ? 'border-ink bg-ink text-white' : 'border-slate-200 bg-white text-slate-600'"
+            role="radio" :aria-checked="!numberFilter"
+            @click="numberFilter = ''"
+          >Todos</button>
+          <button
+            v-for="n in numbers" :key="n.id"
+            class="flex flex-shrink-0 cursor-pointer items-center gap-1.5 border px-3 py-1.5 text-[13px] font-semibold whitespace-nowrap"
+            :style="numberFilter === n.id
+              ? { backgroundColor: numberColor(n), borderColor: numberColor(n), color: '#fff' }
+              : { borderColor: `color-mix(in srgb, ${numberColor(n)} 35%, #fff)`, color: numberColor(n), backgroundColor: '#fff' }"
+            role="radio" :aria-checked="numberFilter === n.id"
+            @click="numberFilter = n.id"
+          >
+            <span class="h-2 w-2" :style="{ backgroundColor: numberFilter === n.id ? '#fff' : numberColor(n) }"></span>
+            {{ n.display_name }}
+            <span v-if="n.session_status !== 'connected'" class="text-[10px] font-medium opacity-80">· desconectado</span>
+          </button>
+        </div>
+
         <!-- Tabs con ícono + texto -->
         <div class="flex">
           <button
@@ -755,7 +813,12 @@ async function syncNames() {
         </div>
         <div v-for="c in conversations" :key="c.id"
           class="group relative flex w-full cursor-pointer items-center gap-3 border-b border-slate-200 px-4 py-3.5 text-left transition-colors hover:bg-slate-50"
-          :class="activeId === c.id ? 'border-l-[3px] border-l-[#F69008] bg-[#F69008]/5' : 'border-l-[3px] border-l-transparent'"
+          :class="[
+            'border-l-[4px]',
+            activeId === c.id ? 'bg-[#F69008]/5' : '',
+            convNumber(c) ? '' : activeId === c.id ? 'border-l-[#F69008]' : 'border-l-transparent',
+          ]"
+          :style="convNumber(c) ? { borderLeftColor: numberColor(convNumber(c)) } : undefined"
           @click="selectConversation(c.id)"
         >
           <div class="relative flex-shrink-0">
@@ -779,6 +842,11 @@ async function syncNames() {
               <span v-if="c.last_message_at" class="flex-shrink-0 text-xs font-medium text-slate-600">{{ fmtTime(c.last_message_at) }}</span>
             </div>
             <p class="mt-0.5 truncate text-sm" :class="c.unread_count > 0 ? 'font-semibold text-slate-800' : 'font-medium text-slate-600'">{{ c.last_message_preview || 'Sin mensajes' }}</p>
+            <span v-if="convNumber(c)" class="number-tag mt-1"
+              :style="{ color: numberColor(convNumber(c)), backgroundColor: `color-mix(in srgb, ${numberColor(convNumber(c))} 10%, #fff)` }">
+              <span class="h-1.5 w-1.5" :style="{ backgroundColor: numberColor(convNumber(c)) }"></span>
+              {{ convNumber(c)!.display_name }}
+            </span>
           </div>
           <!-- Botón borrar visible al hacer hover -->
           <button
@@ -814,7 +882,8 @@ async function syncNames() {
 
       <template v-else>
         <!-- Header -->
-        <div class="flex items-center justify-between gap-2 border-b border-slate-200/80 bg-white px-2 py-2.5 shadow-sm sm:px-4">
+        <div class="flex items-center justify-between gap-2 border-b border-slate-200/80 bg-white px-2 py-2.5 shadow-sm sm:px-4"
+          :style="convNumber(activeConv) ? { borderTop: `4px solid ${numberColor(convNumber(activeConv))}` } : undefined">
           <div class="flex min-w-0 flex-1 items-center gap-2">
             <!-- Botón volver (solo móvil) -->
             <button
@@ -841,7 +910,11 @@ async function syncNames() {
                 <span class="inline-block h-1.5 w-1.5 rounded-full" :class="activeConv.channel === 'instagram_dm' ? 'bg-[#e91e63]' : 'bg-[#1877F2]'"></span>
                 {{ activeConv.channel === 'instagram_dm' ? 'Instagram' : 'Messenger' }}
               </p>
-              <p v-else class="flex items-center gap-1 text-xs text-slate-400">
+              <p v-else class="flex min-w-0 items-center gap-1 text-xs text-slate-400">
+                <span v-if="convNumber(activeConv)" class="number-tag mr-1 flex-shrink-0"
+                  :style="{ color: '#fff', backgroundColor: numberColor(convNumber(activeConv)) }">
+                  vía {{ convNumber(activeConv)!.display_name }}
+                </span>
                 <span class="inline-block h-1.5 w-1.5 rounded-full bg-[#25D366]"></span>
                 {{ contactBundle?.contact?.phone
                   ? `+${contactBundle.contact.phone}`
@@ -1046,7 +1119,9 @@ async function syncNames() {
         <div class="border-t border-slate-200/80 bg-white px-4 py-3">
           <div class="flex items-end gap-2">
             <textarea v-model="msgInput" @keydown.enter="onEnter"
-              :placeholder="isNarrow ? 'Escribe un mensaje…' : 'Escribe un mensaje… (Enter envía, Shift+Enter nueva línea)'"
+              :placeholder="convNumber(activeConv)
+                ? `Responder por ${convNumber(activeConv)!.display_name}…`
+                : isNarrow ? 'Escribe un mensaje…' : 'Escribe un mensaje… (Enter envía, Shift+Enter nueva línea)'"
               rows="1"
               class="flex-1 resize-none rounded-2xl border border-slate-200 bg-[#f0f2f5] px-4 py-2.5 text-sm transition-colors focus:border-[#25D366] focus:bg-white focus:ring-2 focus:ring-[#25D366]/20 focus:outline-none"
               style="max-height: 120px; overflow-y: auto;"
@@ -1370,6 +1445,24 @@ async function syncNames() {
           <!-- Cuerpo -->
           <div class="flex flex-col gap-3 overflow-hidden p-5">
 
+            <!-- Número por el que se escribe (solo con más de un número) -->
+            <div v-if="multiNumber">
+              <p class="mb-1.5 block text-sm font-bold text-slate-800">Enviar desde</p>
+              <div class="flex flex-wrap gap-1.5">
+                <button
+                  v-for="n in numbers" :key="n.id" type="button"
+                  class="flex cursor-pointer items-center gap-1.5 border px-3 py-1.5 text-[13px] font-semibold"
+                  :style="newChatNumber === n.id
+                    ? { backgroundColor: numberColor(n), borderColor: numberColor(n), color: '#fff' }
+                    : { borderColor: `color-mix(in srgb, ${numberColor(n)} 35%, #fff)`, color: numberColor(n), backgroundColor: '#fff' }"
+                  @click="newChatNumber = n.id"
+                >
+                  <span class="h-2 w-2" :style="{ backgroundColor: newChatNumber === n.id ? '#fff' : numberColor(n) }"></span>
+                  {{ n.display_name }}
+                </button>
+              </div>
+            </div>
+
             <!-- Label + buscador -->
             <div>
               <label class="mb-1.5 block text-sm font-bold text-slate-800">
@@ -1473,4 +1566,12 @@ async function syncNames() {
 ::-webkit-scrollbar-thumb:hover   { background: #8FA0B8; }
 ::-webkit-scrollbar-button        { display: none; }
 * { scrollbar-width: thin; scrollbar-color: #CBD1DA transparent; }
+
+/* Etiqueta del número de WhatsApp por el que entró el chat */
+.number-tag {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  padding: 0.05rem 0.4rem; font-size: 11px; font-weight: 600; line-height: 1.5; white-space: nowrap;
+}
+.number-filter { scrollbar-width: none; }
+.number-filter::-webkit-scrollbar { display: none; }
 </style>

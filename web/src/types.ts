@@ -234,7 +234,11 @@ export interface Conversation {
   created_at: string;
   updated_at: string;
   contact_full_name?: string | null;
+  wa_instance_id?: string | null;
 }
+
+// Número de WhatsApp conectado (GET /conversations/numbers)
+export interface WaNumber { id: string; display_name: string; color: string | null; is_default: boolean; session_status: string }
 
 export interface ConvMessage {
   id: string;
