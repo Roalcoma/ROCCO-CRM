@@ -23,7 +23,7 @@ interface AutoStep {
 }
 
 interface AutoConfig {
-  trigger?: { type: string; tag?: string; wa_instance_id?: string };
+  trigger?: { type: string; tag?: string; wa_instance_id?: string; ad_only?: boolean };
   steps?: AutoStep[];
   [k: string]: unknown;
 }
@@ -153,7 +153,8 @@ function triggerSubtitle(rule: AutomationRule): string {
   if (tag) return `Cuando se añade la etiqueta "${tag}"`;
   if (rule.trigger_type === 'whatsapp_new_message') {
     const num = waNumberNames.value[rule.config?.trigger?.wa_instance_id ?? ''];
-    return num ? `Primer mensaje de un chat nuevo en ${num}` : 'Primer mensaje de WhatsApp de un número nuevo';
+    const base = num ? `Primer mensaje de un chat nuevo en ${num}` : 'Primer mensaje de WhatsApp de un número nuevo';
+    return rule.config?.trigger?.ad_only ? `${base}, solo desde anuncios` : base;
   }
   if (rule.trigger_type === 'appointment_booked') return 'Cuando alguien agenda una cita en el calendario';
   if (rule.trigger_type === 'appointment_no_show') return 'Cuando una cita se marca como «No asistió»';

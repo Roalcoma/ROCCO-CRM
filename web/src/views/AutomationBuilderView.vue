@@ -179,6 +179,14 @@ const errorMsg = ref('');
 const pipelines = ref<Pipeline[]>([]);
 // Números de WhatsApp de la org (el disparador "Nuevo mensaje" puede limitarse a uno)
 const waNumbers = ref<{ id: string; display_name: string; color: string | null }[]>([]);
+// "Nuevo mensaje de WhatsApp": solo los chats que abre un anuncio (click-to-WhatsApp)
+const adOnly = computed({
+  get: () => (triggerConfig.value as Record<string, unknown>).ad_only === true,
+  set: (v: boolean) => {
+    const cfg = triggerConfig.value as Record<string, unknown>;
+    if (v) cfg.ad_only = true; else delete cfg.ad_only;
+  },
+});
 const triggerNumberName = computed(() => waNumbers.value.find(n => n.id === triggerConfig.value.wa_instance_id)?.display_name ?? '');
 
 // Selected node: 'trigger' | step.id | null
@@ -414,7 +422,8 @@ function stepPreview(step: Step): string {
                 <p class="text-[13px] font-semibold text-slate-900">{{ triggerMeta(triggerType).label }}</p>
                 <p class="truncate text-[11px] text-slate-500">
                   {{ triggerType === 'tag_added' && triggerConfig.tag ? `Etiqueta: "${triggerConfig.tag}"`
-                    : triggerType === 'whatsapp_new_message' && waNumbers.length > 1 ? `Número: ${triggerNumberName || 'cualquiera'}`
+                    : triggerType === 'whatsapp_new_message' && (waNumbers.length > 1 || adOnly)
+                      ? [waNumbers.length > 1 ? `Número: ${triggerNumberName || 'cualquiera'}` : '', adOnly ? 'solo desde anuncios' : ''].filter(Boolean).join(' · ')
                     : 'Haz clic para configurar' }}
                 </p>
               </div>
@@ -587,6 +596,22 @@ function stepPreview(step: Step): string {
                 </select>
                 <p class="mt-1.5 text-[11px] text-slate-400">Solo se dispara con los chats nuevos que entren por este número. Las respuestas del flujo salen por el mismo número.</p>
               </div>
+
+              <!-- Nuevo mensaje de WhatsApp: ¿solo los que vienen de un anuncio? -->
+              <button
+                v-if="triggerType === 'whatsapp_new_message'"
+                type="button"
+                class="flex w-full items-start gap-3 rounded-xl border border-slate-200 p-3 text-left transition-colors hover:bg-slate-50"
+                @click="adOnly = !adOnly"
+              >
+                <component :is="adOnly ? ToggleRight : ToggleLeft" class="mt-0.5 h-5 w-5 flex-shrink-0" :class="adOnly ? 'text-emerald-600' : 'text-slate-400'" />
+                <span>
+                  <span class="block text-[13px] font-medium text-slate-800">Solo si viene de un anuncio</span>
+                  <span class="mt-0.5 block text-[11px] text-slate-400">
+                    Se dispara únicamente cuando el chat lo abre alguien que tocó un anuncio de Facebook o Instagram (click-to-WhatsApp). Los que escriben directo no la activan.
+                  </span>
+                </span>
+              </button>
 
               <!-- Cita agendada: ¿también las citas creadas a mano? -->
               <button

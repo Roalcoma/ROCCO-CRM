@@ -158,7 +158,7 @@ waWebhookRouter.post('/:secret', async (req, res) => {
 
         // Disparar automatizaciones de nuevo mensaje WA
         if (isNewConversation) {
-          fireWaNewMessageTrigger(orgId, contactId, instanceId).catch(e => console.error('fireWaNewMessageTrigger:', e));
+          fireWaNewMessageTrigger(orgId, contactId, instanceId, !!adRef).catch(e => console.error('fireWaNewMessageTrigger:', e));
         }
       }
 

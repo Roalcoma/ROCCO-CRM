@@ -939,15 +939,18 @@ export async function fireWaNewMessageTrigger(
   orgId: string,
   contactId: string | null,
   waInstanceId?: string | null,
+  fromAd = false,
 ): Promise<void> {
   if (!contactId) return;
   try {
-    // config.trigger.wa_instance_id limita la regla a un número; vacío = cualquier número
+    // config.trigger.wa_instance_id limita la regla a un número (vacío = cualquiera) y
+    // config.trigger.ad_only a los chats que abre un anuncio (click-to-WhatsApp)
     const rulesRes = await pool.query<{ id: string }>(
       `SELECT id FROM automation_rules
        WHERE organization_id = $1 AND trigger_type = 'whatsapp_new_message' AND enabled = true
-         AND (COALESCE(config->'trigger'->>'wa_instance_id', '') = '' OR config->'trigger'->>'wa_instance_id' = $2::text)`,
-      [orgId, waInstanceId ?? ''],
+         AND (COALESCE(config->'trigger'->>'wa_instance_id', '') = '' OR config->'trigger'->>'wa_instance_id' = $2::text)
+         AND ($3::boolean OR COALESCE((config->'trigger'->>'ad_only')::boolean, false) = false)`,
+      [orgId, waInstanceId ?? '', fromAd],
     );
     for (const rule of rulesRes.rows) {
       await startAutomation(orgId, rule.id, contactId, undefined, waInstanceId);

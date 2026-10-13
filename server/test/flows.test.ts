@@ -1020,3 +1020,28 @@ test('Acceso: usuario limitado a un número y un pipeline solo ve lo suyo (chats
 
   await db.query('DELETE FROM automation_rules WHERE id = ANY($1::uuid[])', [rules]);
 });
+
+// ── Disparador "solo desde anuncios": los chats que no abre un anuncio no lo activan ──
+test('WhatsApp: la regla «solo si viene de un anuncio» corre con chats de anuncio y no con los directos', async () => {
+  const rule = (await api(org.token, 'POST', '/automations', {
+    name: 'Solo anuncios', trigger_type: 'whatsapp_new_message',
+    config: { trigger: { ad_only: true }, steps: [{ id: 's1', type: 'create_opportunity', title: 'Anuncio {{contact.name}}' }] },
+  })).data.id;
+  const runs = async (phone: string) => (await one(
+    `SELECT count(*)::int AS n FROM automation_runs r JOIN contacts c ON c.id = r.contact_id
+     WHERE r.automation_id = $1 AND c.phone = $2`, [rule, phone])).n;
+
+  const direct = `58414${rnd()}`;
+  await waInbound(direct, 'Hola, tengo una duda de mi póliza');
+  await until('contacto directo', () => one('SELECT id FROM contacts WHERE organization_id = $1 AND phone = $2', [org.orgId, direct]));
+
+  const fromAd = `58424${rnd()}`;
+  await waInbound(fromAd, 'Hola, vi el video', { contextInfo: { externalAdReply: {
+    title: 'Protege su futuro', body: 'IUL', sourceType: 'ad', sourceId: '1202', sourceUrl: 'https://fb.me/x', ctwaClid: 'c1' } } });
+  await until('lead del anuncio', () => one(
+    `SELECT o.id FROM opportunities o JOIN contacts c ON c.id = o.contact_id WHERE c.phone = $1 AND o.title LIKE 'Anuncio%'`, [fromAd]));
+
+  assert.equal(await runs(fromAd), 1);
+  assert.equal(await runs(direct), 0, 'un chat directo no dispara la regla de anuncios');
+  await db.query('DELETE FROM automation_rules WHERE id = $1', [rule]);
+});
