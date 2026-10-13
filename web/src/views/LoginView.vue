@@ -34,7 +34,7 @@ async function submit() {
         password: password.value,
       });
     }
-    router.push('/dashboard');
+    router.push('/');
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Error inesperado';
   } finally {

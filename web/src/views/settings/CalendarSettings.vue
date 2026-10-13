@@ -730,7 +730,7 @@ watch(selectedUser, () => { Promise.all([loadCalendars(), isAllSelected.value ? 
     <Transition name="toast">
       <div
         v-if="toast"
-        class="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium shadow-xl"
+        class="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-4 z-50 md:bottom-6 md:right-6 flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium shadow-xl"
         :class="toastType === 'success' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'"
       >
         <Check v-if="toastType === 'success'" class="h-4 w-4" />

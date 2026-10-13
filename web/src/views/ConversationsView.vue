@@ -9,6 +9,7 @@ import {
 } from 'lucide-vue-next';
 import { api } from '../api';
 import { useDialog } from '../composables/useDialog';
+import { hideMobileTabBar } from '../composables/useMobileNav';
 import type { Conversation, ConvMessage, Contact, Pipeline, Stage, AdRef } from '../types';
 import { useWs } from '../composables/useWs';
 import LoadingState from '../components/LoadingState.vue';
@@ -109,6 +110,9 @@ const timeline = ref<TimelineItem[]>([]);
 const activeId = ref<string | null>(null);
 const activeConv = computed(() => conversations.value.find(c => c.id === activeId.value) ?? null);
 const showMobileChat = ref(false);
+// Con un chat abierto en móvil se oculta la barra inferior (la caja de escribir ocupa ese sitio)
+watch(showMobileChat, v => { hideMobileTabBar.value = v; });
+onUnmounted(() => { hideMobileTabBar.value = false; });
 
 const { alert, confirm } = useDialog();
 const loading = ref(true);

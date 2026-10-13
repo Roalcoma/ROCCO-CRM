@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted, watch } from 'vue';
+import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { RouterLink, RouterView, useRouter, useRoute } from 'vue-router';
 import {
   LayoutGrid, BookUser, TrendingUp, ListChecks,
   CalendarDays, MessagesSquare, LogOut, Search,
-  SlidersHorizontal, ChevronLeft, ChevronRight, ChevronDown, Zap, Menu, UserCog, ChevronsUpDown,
+  SlidersHorizontal, ChevronLeft, ChevronRight, ChevronDown, Zap, UserCog, ChevronsUpDown,
 } from 'lucide-vue-next';
 import { useAuthStore } from '../stores/auth';
 import { api } from '../api';
@@ -15,6 +15,8 @@ import NotificationsDropdown from '../components/NotificationsDropdown.vue';
 import AccountSwitcher from '../components/AccountSwitcher.vue';
 import ForcePasswordChange from '../components/ForcePasswordChange.vue';
 import WaDownBanner from '../components/WaDownBanner.vue';
+import MobileTabBar from '../components/MobileTabBar.vue';
+import { hideMobileTabBar } from '../composables/useMobileNav';
 import { useWs } from '../composables/useWs';
 import { showToast } from '../composables/useToast';
 import { playNotifSound } from '../composables/useNotifSound';
@@ -85,17 +87,12 @@ function toggleSidebar() {
   auth.savePreferences({ sidebarCollapsed: !collapsed.value });
 }
 
-// ── Mobile drawer ─────────────────────────────────────────────────────────────
-const isMobile     = ref(false);
-const mobileOpen   = ref(false);
+// ── Móvil: barra inferior en vez de sidebar ───────────────────────────────────
+const isMobile = ref(window.innerWidth < 768);
 
 function checkMobile() {
   isMobile.value = window.innerWidth < 768;
-  if (!isMobile.value) mobileOpen.value = false;
 }
-
-// Cierra el drawer al navegar
-watch(() => route.path, () => { mobileOpen.value = false; });
 
 // ── User dropdown ─────────────────────────────────────────────────────────────
 const userMenuOpen = ref(false);
@@ -180,27 +177,13 @@ const s = computed(() => isDark.value
 </script>
 
 <template>
-  <div class="flex h-screen bg-canvas text-slate-900">
+  <div class="flex h-dvh bg-canvas text-slate-900">
 
-    <!-- ── Backdrop móvil ─────────────────────────────────────────────────── -->
-    <Transition name="backdrop">
-      <div
-        v-if="isMobile && mobileOpen"
-        class="mobile-backdrop"
-        @click="mobileOpen = false"
-      />
-    </Transition>
-
-    <!-- ── Sidebar wrapper (relative so the floating toggle can overflow) ─── -->
-    <div
-      class="relative z-10 flex-shrink-0"
-      :class="isMobile ? 'absolute inset-y-0 left-0 z-[60]' : ''"
-    >
-      <Transition name="mobile-drawer">
+    <!-- ── Sidebar wrapper (solo escritorio; en móvil va la barra inferior) ── -->
+    <div v-if="!isMobile" class="relative z-10 flex-shrink-0">
         <aside
-          v-show="!isMobile || mobileOpen"
           class="sidebar flex h-full flex-col overflow-hidden"
-          :class="[s.wrap, isMobile ? 'sidebar--expanded shadow-2xl' : collapsed ? 'sidebar--collapsed' : 'sidebar--expanded']"
+          :class="[s.wrap, collapsed ? 'sidebar--collapsed' : 'sidebar--expanded']"
         >
         <!-- Logo -->
         <div class="flex h-16 flex-shrink-0 items-center gap-3 px-4">
@@ -334,11 +317,9 @@ const s = computed(() => isDark.value
           </p>
         </div>
       </aside>
-      </Transition>
 
-      <!-- Floating toggle button — solo en desktop -->
+      <!-- Floating toggle button -->
       <button
-        v-if="!isMobile"
         class="floating-toggle absolute right-0 z-20 flex cursor-pointer items-center justify-center rounded-full bg-[#F69008] text-white shadow-lg shadow-[#F69008]/30 ring-2 transition-all hover:bg-[#D97706] hover:shadow-[#D97706]/40 active:scale-95"
         :class="isDark ? 'ring-[#13243D]' : 'ring-white'"
         style="top: 86%; transform: translate(50%, -50%)"
@@ -353,18 +334,10 @@ const s = computed(() => isDark.value
     <div class="flex flex-1 flex-col overflow-hidden min-w-0">
 
       <!-- Header -->
-      <header class="z-[5] flex h-16 flex-shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 shadow-toolbar sm:px-6">
-        <!-- Hamburguesa (solo móvil) + Page title / breadcrumb -->
-        <div class="flex items-center gap-3">
-          <button
-            v-if="isMobile"
-            class="btn btn-ghost btn-sm rounded-lg p-1.5"
-            @click="mobileOpen = true"
-            aria-label="Abrir menú"
-          >
-            <Menu class="h-5 w-5" />
-          </button>
-          <div>
+      <header class="z-[5] box-content flex h-16 flex-shrink-0 pt-[env(safe-area-inset-top)] items-center justify-between border-b border-slate-200 bg-white px-4 shadow-toolbar sm:px-6">
+        <!-- Page title / breadcrumb -->
+        <div class="flex min-w-0 items-center gap-3">
+          <div class="min-w-0">
             <div v-if="breadcrumb.length" class="mb-0.5 flex items-center gap-1 text-xs text-slate-400">
               <RouterLink v-if="breadcrumb[0].to" :to="breadcrumb[0].to" class="transition-colors hover:text-primary">{{ breadcrumb[0].label }}</RouterLink>
               <span v-else>{{ breadcrumb[0].label }}</span>
@@ -471,6 +444,8 @@ const s = computed(() => isDark.value
           </Transition>
         </RouterView>
       </main>
+
+      <MobileTabBar v-if="isMobile && !hideMobileTabBar" @switch-account="switcherOpen = true" />
     </div>
   </div>
 

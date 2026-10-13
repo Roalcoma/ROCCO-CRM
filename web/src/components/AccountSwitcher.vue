@@ -76,7 +76,7 @@ async function switchToOrg(org: UserOrg) {
     const res = await api.post<{ token: string }>('/me/switch-org', { organizationId: org.id });
     setToken(res.token);
     emit('close');
-    await router.push('/dashboard');
+    await router.push('/');
     window.location.reload();
   } catch (e) {
     await alert(e instanceof Error ? e.message : 'Error al cambiar organización');
@@ -98,7 +98,7 @@ async function switchToClient(client: AgencyClient) {
     setToken(res.token);
     localStorage.setItem('crm_impersonated_client', JSON.stringify(res.client));
     emit('close');
-    await router.push('/dashboard');
+    await router.push('/');
     window.location.reload();
   } catch (e) {
     await alert(e instanceof Error ? e.message : 'Error al acceder al CRM');

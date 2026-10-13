@@ -5,7 +5,7 @@ import { toasts, dismissToast } from '../composables/useToast';
 
 <template>
   <Teleport to="body">
-    <div class="pointer-events-none fixed bottom-4 right-4 z-[300] flex w-[calc(100%-2rem)] max-w-sm flex-col gap-2"
+    <div class="pointer-events-none fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 md:bottom-4 z-[300] flex w-[calc(100%-2rem)] max-w-sm flex-col gap-2"
          role="status" aria-live="polite">
       <TransitionGroup name="app-toast">
         <div v-for="t in toasts" :key="t.id"

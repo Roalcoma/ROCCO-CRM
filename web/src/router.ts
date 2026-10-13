@@ -30,7 +30,7 @@ const routes = [
     path: '/',
     component: () => import('./layouts/AppLayout.vue'),
     children: [
-      { path: '', redirect: () => (getToken() ? '/dashboard' : '/inicio') },
+      { path: '', redirect: () => (!getToken() ? '/inicio' : window.innerWidth < 768 ? '/opportunities' : '/dashboard') },
       { path: 'dashboard', component: () => import('./views/DashboardView.vue'), meta: { title: 'Dashboard' } },
       { path: 'contacts', component: () => import('./views/ContactsView.vue'), meta: { title: 'Contactos', module: 'contacts' } },
       { path: 'contacts/:id', component: () => import('./views/ContactDetailView.vue'), meta: { title: 'Contacto', module: 'contacts' } },
