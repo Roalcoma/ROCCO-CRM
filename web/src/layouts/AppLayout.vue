@@ -18,6 +18,7 @@ import WaDownBanner from '../components/WaDownBanner.vue';
 import MobileTabBar from '../components/MobileTabBar.vue';
 import PushPrompt from '../components/PushPrompt.vue';
 import { hideMobileTabBar } from '../composables/useMobileNav';
+import { isIos, isStandalone } from '../push';
 import { useWs } from '../composables/useWs';
 import { showToast } from '../composables/useToast';
 import { playNotifSound } from '../composables/useNotifSound';
@@ -93,7 +94,21 @@ const isMobile = ref(window.innerWidth < 768);
 
 function checkMobile() {
   isMobile.value = window.innerWidth < 768;
+  fitIosHeight();
 }
+
+// iPhone con la app instalada (barra de estado translúcida): 100vh / inset-0 se quedan cortos por
+// el alto de la barra de estado y debajo de la barra inferior asoma una franja. Ahí se usa el
+// alto real de la pantalla; en el resto de dispositivos el layout ocupa el viewport normal.
+const iosApp = isIos() && isStandalone();
+const appHeight = ref('100%');
+function fitIosHeight() {
+  if (!iosApp) return;
+  const portrait = matchMedia('(orientation: portrait)').matches;
+  const h = portrait ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
+  appHeight.value = `${h}px`;
+}
+fitIosHeight();
 
 // ── User dropdown ─────────────────────────────────────────────────────────────
 const userMenuOpen = ref(false);
@@ -178,7 +193,7 @@ const s = computed(() => isDark.value
 </script>
 
 <template>
-  <div class="fixed inset-0 flex bg-canvas text-slate-900">
+  <div class="fixed inset-x-0 top-0 flex bg-canvas text-slate-900" :style="{ height: appHeight }">
 
     <!-- ── Sidebar wrapper (solo escritorio; en móvil va la barra inferior) ── -->
     <div v-if="!isMobile" class="relative z-10 flex-shrink-0">
