@@ -199,7 +199,7 @@ const allAccounts = computed<Account[]>(() => {
       >
         <!-- Avatar -->
         <div
-          class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-[12px] font-bold"
+          class="presence flex h-9 w-9 flex-shrink-0 items-center justify-center text-[12px] font-bold"
           :class="acc.isCurrent ? 'bg-[#F69008]/15 text-[#F69008]' : 'bg-slate-100 text-slate-600'"
         >
           {{ acc.initial }}

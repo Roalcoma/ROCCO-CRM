@@ -1,43 +1,76 @@
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap');
 @import 'tailwindcss';
 
-/* Tema del CRM: West Side #F69008 primario + Seagull #60D0FA acento. */
+/* Tema Rocco CRM — línea visual Kora (Plus Jakarta Sans, canvas frío, border-radius 0). */
 @theme {
+  /* Marca */
   --color-primary: #F69008;
   --color-primary-dark: #D97706;
   --color-primary-light: #FEF3C7;
   --color-cta: #60D0FA;
   --font-sans: 'Roboto', ui-sans-serif, system-ui, sans-serif;
-  /* Display con carácter para títulos, cifras y wordmark (personalidad Rocco) */
-  --font-display: 'Bricolage Grotesque', 'Roboto', ui-sans-serif, sans-serif;
+  --font-display: 'Plus Jakarta Sans', 'Roboto', ui-sans-serif, sans-serif;
 
-  /* Identidad Rocco: naranja (fruta) + azul marino (wordmark) + lienzo cálido */
+  /* Identidad Rocco: naranja + marino + lienzo */
   --color-ink: #13243D;
   --color-ink-soft: #1C3150;
   --color-leaf: #2F5D8A;
-  --color-canvas: #F6F4F0;
+  --color-canvas: #F7F8FA;
 
-  /* Escala de fuentes ligeramente mayor para mejor legibilidad (GHL-style) */
-  --text-xs: 0.8125rem;   /* 13px  (default 12px) */
-  --text-sm: 0.9375rem;   /* 15px  (default 14px) */
+  /* Neutros (espejo Kora) */
+  --color-surface: #FFFFFF;
+  --color-canvas-deep: #EEF1F5;
+  --color-line: #E4E7EC;
+  --color-line-strong: #CBD1DA;
+  --color-muted: #5E6878;
+  --color-sidebar-text: #C9D3E0;
 
-  /* Sistema de elevación: sombras suaves multicapa (profundidad premium). */
-  --shadow-card:     0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06);
-  --shadow-elevated: 0 2px 4px rgba(15, 23, 42, 0.04), 0 8px 20px rgba(15, 23, 42, 0.10);
-  --shadow-dropdown: 0 4px 8px rgba(15, 23, 42, 0.06), 0 12px 32px rgba(15, 23, 42, 0.14);
-  --shadow-modal:    0 8px 16px rgba(15, 23, 42, 0.10), 0 24px 56px rgba(15, 23, 42, 0.22);
-  --shadow-toolbar:  0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.05);
+  /* Semánticos */
+  --color-danger: #B42318;
+  --color-danger-light: #FDECEA;
+  --color-warning: #B54708;
+  --color-warning-light: #FEF0E1;
+  --color-success: #1E7F4F;
+  --color-success-light: #E6F4EC;
+  --color-presence: #2BAC76;
+
+  /* Escala de fuentes (GHL-style, un poco más grande) */
+  --text-xs: 0.8125rem;
+  --text-sm: 0.9375rem;
+
+  /* Profundidad — nombres Kora (sm/md/lg) */
+  --shadow-sm: 0 1px 2px rgb(19 36 61 / 0.08);
+  --shadow-md: 0 4px 14px rgb(19 36 61 / 0.12);
+  --shadow-lg: 0 12px 32px rgb(19 36 61 / 0.18);
+
+  /* Aliases de compatibilidad con templates existentes */
+  --shadow-card:     var(--shadow-sm);
+  --shadow-elevated: var(--shadow-md);
+  --shadow-dropdown: var(--shadow-lg);
+  --shadow-modal:    var(--shadow-lg);
+  --shadow-toolbar:  var(--shadow-sm);
 }
+
+:root {
+  --duration: 160ms;
+  --tap: 44px;
+}
+
+/* Reset global de esquinas — misma regla que Kora */
+*, *::before, *::after { border-radius: 0 !important; }
+/* Única excepción: elementos explícitamente circulares (avatares, spinners) */
+.presence { border-radius: 50% !important; }
 
 html {
   font-family: var(--font-sans);
 }
 
-/* Títulos de página y secciones principales con la fuente display */
 h1, h2, .font-display {
   font-family: var(--font-display);
   letter-spacing: -0.015em;
 }
+
+:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 
 /* ── Sidebar oscuro con identidad: azul marino Rocco + brillo cítrico ─────── */
 .sidebar-ink {
@@ -46,11 +79,10 @@ h1, h2, .font-display {
     radial-gradient(90% 30% at 100% 100%, rgb(47 93 138 / 0.35), transparent 70%),
     linear-gradient(180deg, #13243D 0%, #0E1B2E 100%);
 }
-/* El isotipo se inclina al pasar el cursor, como una naranja que rueda */
 .brand-mark { transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
 .brand-mark:hover { transform: rotate(-12deg) scale(1.06); }
 
-/* Textura cítrica: puntos sutiles como la piel de la naranja del logo */
+/* Textura cítrica */
 .citrus-dots {
   background-image: radial-gradient(circle, rgb(246 144 8 / 0.28) 1px, transparent 1.4px);
   background-size: 14px 14px;
@@ -61,7 +93,6 @@ h1, h2, .font-display {
   to   { opacity: 1; }
 }
 
-/* Spin — linear, 0.9s. will-change fuerza composición GPU */
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -70,11 +101,9 @@ h1, h2, .font-display {
   will-change: transform;
 }
 
-
-/* Campo de formulario reutilizable en vistas con @apply (evita @reference en scoped) */
+/* Campo de formulario global */
 .input {
   width: 100%;
-  border-radius: 0.5rem;
   border: 1px solid #e2e8f0;
   background: #ffffff;
   padding: 0.5rem 0.75rem;
@@ -92,7 +121,6 @@ h1, h2, .font-display {
 /* Campo estilo "negocio" (usado también por BizSelect) */
 .biz-input {
   width: 100%;
-  border-radius: 8px;
   border: 1.5px solid #E2E8F0;
   padding: 9px 12px;
   font-size: 13px;
@@ -114,14 +142,12 @@ h1, h2, .font-display {
 .stat-card {
   position: relative;
   overflow: hidden;
-  border-radius: 0.75rem;
   border: 1px solid #e7e2da;
   background: #ffffff;
   padding: 1.25rem;
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow-sm);
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
-/* Filo naranja que aparece al pasar el cursor */
 .stat-card::before {
   content: '';
   position: absolute;
@@ -135,7 +161,7 @@ h1, h2, .font-display {
 .stat-card:hover {
   transform: translateY(-2px);
   border-color: #f3d3a6;
-  box-shadow: var(--shadow-elevated);
+  box-shadow: var(--shadow-md);
 }
 .stat-card:hover::before { transform: scaleX(1); }
 .stat-card__number {
@@ -158,7 +184,6 @@ h1, h2, .font-display {
   align-items: center;
   gap: 0.25rem;
   padding: 0.125rem 0.5rem;
-  border-radius: 9999px;
   font-size: 0.7rem;
   font-weight: 600;
 }
@@ -177,7 +202,6 @@ h1, h2, .font-display {
   align-items: center;
   gap: 0.375rem;
   padding: 0.25rem 0.625rem;
-  border-radius: 9999px;
   border: 1px solid #e2e8f0;
   background: #ffffff;
   font-size: 0.75rem;
@@ -203,7 +227,6 @@ h1, h2, .font-display {
   justify-content: center;
   width: 14px;
   height: 14px;
-  border-radius: 9999px;
   color: #94a3b8;
   transition: color 0.15s ease, background 0.15s ease;
 }
@@ -212,7 +235,7 @@ h1, h2, .font-display {
   background: rgba(220, 38, 38, 0.08);
 }
 
-/* ── Tabs mejorados (Flowlu style) ──────────────────────────────────────────── */
+/* ── Tabs mejorados ─────────────────────────────────────────────────────────── */
 .view-tab {
   display: inline-flex;
   align-items: center;
@@ -226,9 +249,7 @@ h1, h2, .font-display {
   transition: color 0.15s ease, border-color 0.15s ease;
   white-space: nowrap;
 }
-.view-tab:hover {
-  color: #0f172a;
-}
+.view-tab:hover { color: #0f172a; }
 .view-tab--active {
   border-bottom-color: #F69008;
   color: #F69008;
@@ -242,7 +263,6 @@ h1, h2, .font-display {
   gap: 0.375rem;
   width: 100%;
   padding: 0.5rem 0.75rem;
-  border-radius: 0.375rem;
   border: 1px dashed #cbd5e1;
   background: transparent;
   font-size: 0.75rem;
@@ -258,7 +278,7 @@ h1, h2, .font-display {
   background: rgba(246, 144, 8, 0.05);
 }
 
-/* ── Inputs mejorados ───────────────────────────────────────────────────────── */
+/* ── Inputs nativos ─────────────────────────────────────────────────────────── */
 input[type="text"],
 input[type="email"],
 input[type="number"],
@@ -271,55 +291,60 @@ select {
   transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 
+input[type="checkbox"] {
+  appearance: none; flex: none; width: 18px; height: 18px; margin: 0;
+  display: inline-grid; place-content: center;
+  background: var(--color-surface); border: 1.5px solid var(--color-line-strong);
+  box-shadow: var(--shadow-sm); cursor: pointer;
+  transition: background var(--duration), border-color var(--duration);
+}
+input[type="checkbox"]:hover { border-color: var(--color-ink); }
+input[type="checkbox"]:checked { background: var(--color-ink); border-color: var(--color-ink); }
+input[type="checkbox"]:checked::after {
+  content: ''; width: 5px; height: 10px; margin-top: -2px;
+  border: solid var(--color-primary); border-width: 0 2.5px 2.5px 0;
+  transform: rotate(45deg);
+}
+
+/* Números sin flechas del sistema */
+input[type="number"] { appearance: textfield; -moz-appearance: textfield; }
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
 /* ── Tables ─────────────────────────────────────────────────────────────────── */
-.data-table tbody tr:hover {
-  background: rgba(246, 144, 8, 0.04);
-}
-.data-table th {
-  position: relative;
-  cursor: default;
-  user-select: none;
-}
-.data-table th.sortable:hover {
-  background: #f8fafc;
-  color: #0f172a;
-}
+.data-table tbody tr:hover { background: rgba(246, 144, 8, 0.04); }
+.data-table th { position: relative; cursor: default; user-select: none; }
+.data-table th.sortable:hover { background: #f8fafc; color: #0f172a; }
 
 /* ── Transiciones Vue ───────────────────────────────────────────────────────── */
 .fade-enter-active, .fade-leave-active { transition: opacity 0.18s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 
-/* Transición de página — solo opacity, rápida para no sentirse "lenta" */
 .page-enter-active { transition: opacity 0.15s ease; }
 .page-leave-active { transition: opacity 0.1s ease; }
 .page-enter-from, .page-leave-to { opacity: 0; }
 
-/* Modal: scale sutil en el panel — solo transform+opacity (GPU) */
 .modal-enter-active, .modal-leave-active { transition: opacity 0.18s ease; }
 .modal-enter-from, .modal-leave-to { opacity: 0; }
 .modal-enter-active .modal-panel { transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.18s ease; }
 .modal-leave-active .modal-panel  { transition: transform 0.15s ease, opacity 0.15s ease; }
 .modal-enter-from .modal-panel, .modal-leave-to .modal-panel { transform: scale(0.96) translateY(8px); opacity: 0; }
 
-/* Expand — SOLO opacity+transform, sin max-height (evita reflow) */
 .expand-enter-active { transition: opacity 0.18s ease, transform 0.18s cubic-bezier(0.16, 1, 0.3, 1); }
 .expand-leave-active { transition: opacity 0.12s ease, transform 0.12s ease; }
 .expand-enter-from, .expand-leave-to { opacity: 0; transform: translateY(-6px) scaleY(0.96); }
 .expand-enter-active, .expand-leave-active { transform-origin: top; }
 
-/* Slideover */
 .slideover-enter-active, .slideover-leave-active { transition: opacity 0.18s ease; }
 .slideover-enter-from, .slideover-leave-to { opacity: 0; }
 .slideover-enter-active .slideover-panel { transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
 .slideover-leave-active .slideover-panel { transition: transform 0.2s ease; }
 .slideover-enter-from .slideover-panel, .slideover-leave-to .slideover-panel { transform: translateX(100%); }
 
-/* Dropdown — muy rápido para sentirse snappy */
 .dropdown-enter-active { transition: opacity 0.12s ease, transform 0.12s cubic-bezier(0.16, 1, 0.3, 1); }
 .dropdown-leave-active { transition: opacity 0.08s ease; }
 .dropdown-enter-from, .dropdown-leave-to { opacity: 0; transform: translateY(-4px) scale(0.98); }
 
-/* List — para Kanban y listas donde los items se reordenan */
 .list-move        { transition: transform 0.2s ease; }
 .list-enter-active { transition: opacity 0.18s ease, transform 0.18s cubic-bezier(0.16, 1, 0.3, 1); }
 .list-leave-active { transition: opacity 0.12s ease; position: absolute; width: 100%; }
@@ -336,13 +361,12 @@ select {
   animation: shimmer 1.5s ease-in-out infinite;
 }
 
-/* ── Sistema de botones unificado ────────────────────────────────────────────── */
+/* ── Sistema de botones ─────────────────────────────────────────────────────── */
 .btn {
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
   padding: 0.5rem 0.875rem;
-  border-radius: 0.5rem;
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
@@ -356,11 +380,7 @@ select {
 .btn:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
 .btn:active:not(:disabled) { transform: scale(0.97); }
 
-.btn-sm {
-  padding: 0.375rem 0.625rem;
-  font-size: 0.8125rem;
-  gap: 0.25rem;
-}
+.btn-sm { padding: 0.375rem 0.625rem; font-size: 0.8125rem; gap: 0.25rem; }
 
 .btn-primary {
   background: var(--color-primary);
@@ -396,20 +416,14 @@ select {
   border-color: transparent;
   color: #64748b;
 }
-.btn-ghost:hover {
-  background: #f1f5f9;
-  color: #0f172a;
-}
+.btn-ghost:hover { background: #f1f5f9; color: #0f172a; }
 
 .btn-danger {
   background: #ffffff;
   border-color: #fecaca;
   color: #dc2626;
 }
-.btn-danger:hover {
-  background: #fef2f2;
-  border-color: #f87171;
-}
+.btn-danger:hover { background: #fef2f2; border-color: #f87171; }
 
 /* ── Toolbar estándar de módulo ──────────────────────────────────────────────── */
 .page-toolbar {
@@ -420,14 +434,14 @@ select {
   padding: 0.5rem 1rem;
   border-bottom: 1px solid #e2e8f0;
   background: #ffffff;
-  box-shadow: var(--shadow-toolbar);
+  box-shadow: var(--shadow-sm);
   flex-shrink: 0;
 }
 @media (min-width: 640px) {
   .page-toolbar { padding: 0.625rem 1.5rem; }
 }
 
-/* ── Drawer móvil (sidebar nav) ──────────────────────────────────────────────── */
+/* ── Drawer móvil ────────────────────────────────────────────────────────────── */
 .mobile-backdrop {
   position: fixed;
   inset: 0;
@@ -438,9 +452,7 @@ select {
 .mobile-drawer-enter-active, .mobile-drawer-leave-active {
   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
-.mobile-drawer-enter-from, .mobile-drawer-leave-to {
-  transform: translateX(-100%);
-}
+.mobile-drawer-enter-from, .mobile-drawer-leave-to { transform: translateX(-100%); }
 .backdrop-enter-active { transition: opacity 0.2s ease; }
 .backdrop-leave-active { transition: opacity 0.18s ease; }
 .backdrop-enter-from, .backdrop-leave-to { opacity: 0; }

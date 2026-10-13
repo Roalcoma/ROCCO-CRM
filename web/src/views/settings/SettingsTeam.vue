@@ -214,7 +214,7 @@ async function remove(u: User) {
               >
                 <td class="px-4 py-3.5 sm:px-6">
                   <div class="flex items-center gap-3">
-                    <div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-xs font-bold text-white shadow-sm" :class="avatarColor(u.name)">
+                    <div class="presence flex h-9 w-9 flex-shrink-0 items-center justify-center bg-gradient-to-br text-xs font-bold text-white shadow-sm" :class="avatarColor(u.name)">
                       {{ initials(u.name) }}
                     </div>
                     <div class="min-w-0">

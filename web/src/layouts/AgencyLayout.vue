@@ -78,7 +78,7 @@ onUnmounted(() => window.removeEventListener('resize', checkMobile));
           class="flex w-full items-center gap-2.5 rounded-lg border border-white/10 px-2.5 py-2 transition-colors cursor-pointer hover:bg-white/8"
           @click="switcherOpen = true"
         >
-          <div class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#F69008]/20 text-[11px] font-bold text-[#F69008]">
+          <div class="presence flex h-8 w-8 flex-shrink-0 items-center justify-center bg-[#F69008]/20 text-[11px] font-bold text-[#F69008]">
             {{ initials }}
           </div>
           <div class="min-w-0 flex-1 text-left">
@@ -113,7 +113,7 @@ onUnmounted(() => window.removeEventListener('resize', checkMobile));
       <!-- Footer -->
       <div class="border-t border-slate-800/60 p-3">
         <div class="flex items-center gap-2.5 rounded-lg px-2 py-2">
-          <div class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#F69008] to-[#D97706] text-xs font-bold text-white shadow-sm">
+          <div class="presence flex h-8 w-8 flex-shrink-0 items-center justify-center bg-gradient-to-br from-[#F69008] to-[#D97706] text-xs font-bold text-white shadow-sm">
             {{ initials }}
           </div>
           <div class="min-w-0 flex-1">

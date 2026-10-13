@@ -520,7 +520,7 @@ const statusLabel: Record<string, string> = {
               <td class="px-3 py-3.5">
                 <div class="flex items-center gap-3">
                   <div
-                    class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white shadow-sm"
+                    class="presence flex h-9 w-9 flex-shrink-0 items-center justify-center text-[11px] font-bold text-white shadow-sm"
                     :style="{ backgroundColor: avatarBg(c) }"
                   >{{ initials(c) }}</div>
                   <div class="min-w-0">

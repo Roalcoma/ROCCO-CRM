@@ -176,7 +176,7 @@ function timeAgo(iso: string): string {
     <!-- Skeleton loader -->
     <div v-if="loading" class="space-y-4">
       <div v-for="i in 3" :key="i" class="flex gap-3 animate-pulse">
-        <div class="h-8 w-8 shrink-0 rounded-full bg-slate-200"></div>
+        <div class="presence h-8 w-8 shrink-0 bg-slate-200"></div>
         <div class="flex-1 space-y-2 pt-1">
           <div class="h-3 w-3/4 rounded bg-slate-200"></div>
           <div class="h-2.5 w-1/4 rounded bg-slate-100"></div>
@@ -202,7 +202,7 @@ function timeAgo(iso: string): string {
         <div v-for="ev in events" :key="ev.id" class="relative flex gap-4 pl-1">
           <!-- Punto de color + ícono -->
           <div
-            class="relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full shadow-sm"
+            class="presence relative z-10 flex h-7 w-7 shrink-0 items-center justify-center shadow-sm"
             :class="iconBg(ev.event_type)"
           >
             <component :is="iconFor(ev.event_type)" class="h-3.5 w-3.5" />

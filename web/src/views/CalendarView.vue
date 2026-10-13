@@ -675,7 +675,7 @@ function goToWeekDay(year: number, month: number, day: number) {
             <!-- Número + botón + en hover -->
             <div class="mb-1 flex items-center justify-between px-0.5">
               <span
-                class="flex h-6 w-6 items-center justify-center rounded-full text-[12px] font-semibold"
+                class="presence flex h-6 w-6 items-center justify-center text-[12px] font-semibold"
                 :class="[
                   !cell.current ? 'text-slate-300' : cell.weekend ? 'text-slate-400' : 'text-slate-600',
                   isToday(cell.year, cell.month, cell.day) ? '!bg-[#F69008] !text-white !font-bold' : '',
@@ -817,7 +817,7 @@ function goToWeekDay(year: number, month: number, day: number) {
               {{ DAYS_ES[d.getDay()] }}
             </span>
             <span
-              class="mt-1 flex h-7 w-7 items-center justify-center rounded-full text-[13px] font-semibold transition-all"
+              class="presence mt-1 flex h-7 w-7 items-center justify-center text-[13px] font-semibold transition-all"
               :class="isToday(d.getFullYear(), d.getMonth(), d.getDate())
                 ? 'bg-[#F69008] text-white shadow-sm shadow-[#F69008]/30'
                 : d.getDay() === 0 || d.getDay() === 6 ? 'text-slate-400' : 'text-slate-700'"

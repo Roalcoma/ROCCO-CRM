@@ -462,7 +462,7 @@ function close() { emit('update:modelValue', false); }
                   v-for="day in WEEKDAYS"
                   :key="day.value"
                   type="button"
-                  class="h-8 w-8 rounded-full text-xs font-semibold transition-colors cursor-pointer"
+                  class="presence h-8 w-8 text-xs font-semibold transition-colors cursor-pointer"
                   :class="form.recurrenceDays.includes(day.value)
                     ? 'bg-[#F69008] text-white'
                     : 'bg-white border border-slate-300 text-slate-600 hover:border-[#F69008]'"

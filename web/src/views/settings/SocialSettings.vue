@@ -176,11 +176,11 @@ const brokenPics = reactive(new Set<string>());
                 :src="conn.page_picture"
                 @error="brokenPics.add(conn.id)"
                 :alt="conn.page_name"
-                class="h-9 w-9 rounded-full object-cover flex-shrink-0"
+                class="presence h-9 w-9 object-cover flex-shrink-0"
               />
               <div
                 v-else
-                class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#1877F2]/10 text-sm font-bold text-[#1877F2]"
+                class="presence flex h-9 w-9 flex-shrink-0 items-center justify-center bg-[#1877F2]/10 text-sm font-bold text-[#1877F2]"
               >
                 {{ conn.page_name[0] }}
               </div>
@@ -246,11 +246,11 @@ const brokenPics = reactive(new Set<string>());
                 :src="conn.page_picture"
                 @error="brokenPics.add(conn.id)"
                 :alt="conn.page_name"
-                class="h-9 w-9 rounded-full object-cover flex-shrink-0"
+                class="presence h-9 w-9 object-cover flex-shrink-0"
               />
               <div
                 v-else
-                class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
+                class="presence flex h-9 w-9 flex-shrink-0 items-center justify-center text-sm font-bold text-white"
                 style="background: linear-gradient(135deg, #f9a825, #e91e63);"
               >
                 {{ conn.page_name[0] }}

@@ -242,7 +242,7 @@ async function remove(t: Task) {
         </button>
         <button v-for="u in users" :key="u.id" type="button" class="flex w-full cursor-pointer items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm font-medium transition-colors hover:bg-slate-100" :class="assigneeFilter === u.id ? 'text-primary' : 'text-slate-700'" @click="assigneeFilter = u.id">
           <span class="flex items-center gap-2">
-            <span class="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-[#F69008] to-[#D97706] text-[10px] font-semibold text-white">{{ initials(u.name) }}</span>
+            <span class="presence flex h-6 w-6 items-center justify-center bg-gradient-to-br from-[#F69008] to-[#D97706] text-[10px] font-semibold text-white">{{ initials(u.name) }}</span>
             {{ u.name }}
           </span>
           <Check v-if="assigneeFilter === u.id" class="h-4 w-4" />
@@ -304,8 +304,8 @@ async function remove(t: Task) {
               </span>
               <span v-else></span>
               <div v-if="t.assignees.length" class="flex items-center -space-x-1.5">
-                <span v-for="a in t.assignees.slice(0, 3)" :key="a.id" class="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-[#F69008] to-[#D97706] text-[9px] font-semibold text-white ring-2 ring-white" :title="a.name">{{ initials(a.name) }}</span>
-                <span v-if="t.assignees.length > 3" class="flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 text-[9px] font-semibold text-slate-600 ring-2 ring-white">+{{ t.assignees.length - 3 }}</span>
+                <span v-for="a in t.assignees.slice(0, 3)" :key="a.id" class="presence flex h-6 w-6 items-center justify-center bg-gradient-to-br from-[#F69008] to-[#D97706] text-[9px] font-semibold text-white ring-2 ring-white" :title="a.name">{{ initials(a.name) }}</span>
+                <span v-if="t.assignees.length > 3" class="presence flex h-6 w-6 items-center justify-center bg-slate-200 text-[9px] font-semibold text-slate-600 ring-2 ring-white">+{{ t.assignees.length - 3 }}</span>
               </div>
             </div>
             <p v-if="t.opportunity_title" class="mt-2 flex items-center gap-1 border-t border-slate-100 pt-2 text-[11px] text-slate-400"><Kanban class="h-3 w-3" /> {{ t.opportunity_title }}</p>
@@ -440,8 +440,8 @@ async function remove(t: Task) {
 
               <!-- Avatares -->
               <div v-if="t.assignees.length" class="flex flex-shrink-0 items-center -space-x-1.5">
-                <span v-for="a in t.assignees.slice(0, 3)" :key="a.id" class="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[#F69008] to-[#D97706] text-[10px] font-semibold text-white ring-2 ring-white" :title="a.name">{{ initials(a.name) }}</span>
-                <span v-if="t.assignees.length > 3" class="flex h-7 w-7 items-center justify-center rounded-full bg-slate-200 text-[10px] font-semibold text-slate-600 ring-2 ring-white">+{{ t.assignees.length - 3 }}</span>
+                <span v-for="a in t.assignees.slice(0, 3)" :key="a.id" class="presence flex h-7 w-7 items-center justify-center bg-gradient-to-br from-[#F69008] to-[#D97706] text-[10px] font-semibold text-white ring-2 ring-white" :title="a.name">{{ initials(a.name) }}</span>
+                <span v-if="t.assignees.length > 3" class="presence flex h-7 w-7 items-center justify-center bg-slate-200 text-[10px] font-semibold text-slate-600 ring-2 ring-white">+{{ t.assignees.length - 3 }}</span>
               </div>
 
               <StatusSelect :model-value="t.status" @update:model-value="s => changeStatus(t, s)" />
@@ -522,7 +522,7 @@ async function remove(t: Task) {
                   <button type="button" class="flex cursor-pointer items-center gap-1 rounded-full border border-dashed border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-500 transition-colors hover:border-primary hover:text-primary"><UserPlus class="h-3.5 w-3.5" /> Añadir</button>
                 </template>
                 <button v-for="u in availableUsers" :key="u.id" type="button" class="flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-slate-700 transition-colors hover:bg-slate-100" @click="addAssignee(u.id)">
-                  <span class="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-[#F69008] to-[#D97706] text-[10px] font-semibold text-white">{{ initials(u.name) }}</span>
+                  <span class="presence flex h-6 w-6 items-center justify-center bg-gradient-to-br from-[#F69008] to-[#D97706] text-[10px] font-semibold text-white">{{ initials(u.name) }}</span>
                   {{ u.name }}
                 </button>
               </Dropdown>

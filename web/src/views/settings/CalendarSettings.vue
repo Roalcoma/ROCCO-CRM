@@ -280,14 +280,14 @@ watch(selectedUser, () => { Promise.all([loadCalendars(), isAllSelected.value ? 
           </template>
           <template v-else-if="selectedUser">
             <div
-              class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
+              class="presence flex h-6 w-6 flex-shrink-0 items-center justify-center text-[10px] font-bold text-white"
               :style="{ background: userAvatarColor(selectedUser.name) }"
             >{{ userInitials(selectedUser.name) }}</div>
             <span class="text-[13px] font-medium text-slate-700">{{ selectedUser.name }}</span>
           </template>
           <template v-else>
             <div
-              class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
+              class="presence flex h-6 w-6 flex-shrink-0 items-center justify-center text-[10px] font-bold text-white"
               :style="{ background: userAvatarColor(auth.user?.name ?? '') }"
             >{{ userInitials(auth.user?.name ?? '') }}</div>
             <span class="text-[13px] font-medium text-slate-700">{{ auth.user?.name }} <span class="text-[11px] font-normal text-slate-400">(Tú)</span></span>
@@ -331,7 +331,7 @@ watch(selectedUser, () => { Promise.all([loadCalendars(), isAllSelected.value ? 
               @click="selectUser(null)"
             >
               <div
-                class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
+                class="presence flex h-8 w-8 flex-shrink-0 items-center justify-center text-[11px] font-bold text-white"
                 :style="{ background: userAvatarColor(auth.user?.name ?? '') }"
               >{{ userInitials(auth.user?.name ?? '') }}</div>
               <div class="min-w-0 flex-1">
@@ -351,7 +351,7 @@ watch(selectedUser, () => { Promise.all([loadCalendars(), isAllSelected.value ? 
                 @click="selectUser(u)"
               >
                 <div
-                  class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
+                  class="presence flex h-8 w-8 flex-shrink-0 items-center justify-center text-[11px] font-bold text-white"
                   :style="{ background: userAvatarColor(u.name) }"
                 >{{ userInitials(u.name) }}</div>
                 <div class="min-w-0 flex-1">
@@ -447,7 +447,7 @@ watch(selectedUser, () => { Promise.all([loadCalendars(), isAllSelected.value ? 
                 <td v-if="isAllSelected" class="hidden px-4 py-3.5 sm:table-cell">
                   <div class="flex items-center gap-2">
                     <div
-                      class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                      class="presence flex h-6 w-6 flex-shrink-0 items-center justify-center text-[10px] font-bold text-white"
                       :style="{ background: userAvatarColor(cal.owner_name) }"
                     >{{ userInitials(cal.owner_name) }}</div>
                     <span class="text-[13px] text-slate-600 truncate">{{ cal.owner_name }}</span>

@@ -576,7 +576,7 @@ async function confirmDelete() {
               >
                 <!-- Avatar -->
                 <div
-                  class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white"
+                  class="presence flex h-8 w-8 flex-shrink-0 items-center justify-center text-sm font-semibold text-white"
                   :style="`background: ${avatarColor(m.name)}`"
                 >
                   {{ m.name.charAt(0).toUpperCase() }}
@@ -649,7 +649,7 @@ async function confirmDelete() {
                   @click="addMemberFromResult(u)"
                 >
                   <div
-                    class="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white"
+                    class="presence flex h-7 w-7 flex-shrink-0 items-center justify-center text-xs font-semibold text-white"
                     :style="`background: ${avatarColor(u.name)}`"
                   >
                     {{ u.name.charAt(0).toUpperCase() }}

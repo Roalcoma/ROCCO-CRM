@@ -625,7 +625,7 @@ function auditActionDot(action: string) {
                     :key="u.id"
                     class="flex items-center gap-3 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2.5"
                   >
-                    <div class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-bold text-slate-700">
+                    <div class="presence flex h-8 w-8 flex-shrink-0 items-center justify-center bg-slate-200 text-xs font-bold text-slate-700">
                       {{ u.name.charAt(0).toUpperCase() }}
                     </div>
                     <div class="min-w-0 flex-1">

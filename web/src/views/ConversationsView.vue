@@ -822,7 +822,7 @@ async function syncNames() {
             </button>
             <div class="flex min-w-0 items-center gap-3">
             <div class="relative flex-shrink-0">
-              <div class="flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold shadow-sm" :class="avatarColor(activeConv.id)">
+              <div class="presence flex h-10 w-10 items-center justify-center text-sm font-bold shadow-sm" :class="avatarColor(activeConv.id)">
                 {{ initials(convName(activeConv)) }}
               </div>
               <span class="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full border-2 border-white"
@@ -1399,7 +1399,7 @@ async function syncNames() {
                   @click="c.phone && startChatWithContact(c)"
                   :title="!c.phone ? 'Este contacto no tiene número de teléfono' : ''"
                 >
-                  <div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold"
+                  <div class="presence flex h-9 w-9 flex-shrink-0 items-center justify-center text-xs font-bold"
                     :class="avatarColor(c.id)">
                     {{ initials(`${c.first_name} ${c.last_name ?? ''}`) }}
                   </div>
