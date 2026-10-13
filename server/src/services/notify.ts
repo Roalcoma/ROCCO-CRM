@@ -49,11 +49,11 @@ const MODULE_BY_TYPE: Partial<Record<NotifyType, ModuleKey>> = {
   new_lead: 'opportunities', new_message: 'conversations',
 };
 const URL_BY_TYPE: Partial<Record<NotifyType, (d: Record<string, string>) => string>> = {
-  new_lead:             (d) => d.opportunityId ? `/leads?o=${d.opportunityId}` : '/leads',
-  new_message:          (d) => d.conversationId ? `/conversations?c=${d.conversationId}` : '/conversations',
+  new_lead:             (d) => d.opportunityId ? `/opportunities?open=${d.opportunityId}` : '/opportunities',
+  new_message:          (d) => d.contactId ? `/conversations?contact_id=${d.contactId}` : '/conversations',
   appointment_booked:   () => '/calendar',
   appointment_cancelled:() => '/calendar',
-  task_due:             (d) => d.taskId ? `/tasks?t=${d.taskId}` : '/tasks',
+  task_due:             () => '/tasks',
 };
 
 // Antispam de mensajes: un push por conversación y usuario cada 2 minutos (memoria del proceso)
