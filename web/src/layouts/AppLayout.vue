@@ -15,6 +15,9 @@ import NotificationsDropdown from '../components/NotificationsDropdown.vue';
 import AccountSwitcher from '../components/AccountSwitcher.vue';
 import ForcePasswordChange from '../components/ForcePasswordChange.vue';
 import WaDownBanner from '../components/WaDownBanner.vue';
+import { useWs } from '../composables/useWs';
+import { showToast } from '../composables/useToast';
+import { playNotifSound } from '../composables/useNotifSound';
 
 const auth   = useAuthStore();
 const router = useRouter();
@@ -133,6 +136,16 @@ const currentAccountInitial = computed(() => {
   return n.split(' ').filter(Boolean).map((w: string) => w[0]).slice(0, 2).join('').toUpperCase();
 });
 
+// ── Notificaciones en tiempo real: toast + sonido ────────────────────────────
+const { on } = useWs();
+interface NotifPayload { userId?: string; type?: string; title?: string; body?: string }
+on('notification:new', (raw) => {
+  const n = raw as NotifPayload;
+  const msg = [n.title, n.body].filter(Boolean).join(' — ');
+  if (msg) showToast(msg, 'info', 5000);
+  playNotifSound();
+});
+
 // ── Theme tokens ──────────────────────────────────────────────────────────────
 const s = computed(() => isDark.value
   ? {
@@ -206,7 +219,7 @@ const s = computed(() => isDark.value
             @click="switcherOpen = true"
           >
             <div
-              class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
+              class="presence flex h-8 w-8 flex-shrink-0 items-center justify-center text-[11px] font-bold"
               :class="auth.isImpersonated ? 'bg-violet-200 text-violet-700' : (isDark ? 'bg-[#F69008]/20 text-[#F69008]' : 'bg-[#F69008]/15 text-[#D97706]')"
             >
               {{ currentAccountInitial }}
@@ -230,7 +243,7 @@ const s = computed(() => isDark.value
             @click="switcherOpen = true"
           >
             <div
-              class="flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-bold"
+              class="presence flex h-8 w-8 items-center justify-center text-[11px] font-bold"
               :class="auth.isImpersonated ? 'bg-violet-200 text-violet-700' : (isDark ? 'bg-[#F69008]/20 text-[#F69008]' : 'bg-[#F69008]/15 text-[#D97706]')"
             >
               {{ currentAccountInitial }}
@@ -394,7 +407,7 @@ const s = computed(() => isDark.value
               class="flex cursor-pointer items-center gap-2 rounded-xl border border-transparent px-2 py-1.5 transition-all hover:border-slate-200 hover:bg-slate-50"
               @click="userMenuOpen = !userMenuOpen"
             >
-              <div class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#F69008] to-[#D97706] text-xs font-semibold text-white shadow-sm">
+              <div class="presence flex h-8 w-8 flex-shrink-0 items-center justify-center bg-gradient-to-br from-[#F69008] to-[#D97706] text-xs font-semibold text-white shadow-sm">
                 {{ initials }}
               </div>
               <div class="hidden text-left md:block">
@@ -416,7 +429,7 @@ const s = computed(() => isDark.value
                 <!-- User info -->
                 <div class="border-b border-slate-100 px-3.5 py-3">
                   <div class="flex items-center gap-2.5">
-                    <div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#F69008] to-[#D97706] text-sm font-semibold text-white">
+                    <div class="presence flex h-9 w-9 flex-shrink-0 items-center justify-center bg-gradient-to-br from-[#F69008] to-[#D97706] text-sm font-semibold text-white">
                       {{ initials }}
                     </div>
                     <div class="min-w-0">

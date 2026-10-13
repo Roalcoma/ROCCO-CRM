@@ -36,6 +36,7 @@ import { socialRouter, socialPublicRouter, metaWebhookRouter, refreshInstagramTo
 import { pollIgComments } from './services/ig-comments.ts';
 import { leadAdsRouter } from './routes/lead-ads.ts';
 import { agencyRouter } from './routes/agency.ts';
+import { webPushRouter } from './routes/web-push.ts';
 import { automationsRouter } from './routes/automations.ts';
 import { automationMediaRouter, servePublicMedia } from './routes/automation-media.ts';
 import { resumeTimedRuns, recoverStuckRuns } from './services/automation-engine.ts';
@@ -264,6 +265,7 @@ app.use('/api/automations', requireAuth, requireModule('automations'), automatio
 app.use('/api/automation-media', requireAuth, requireModule('automations'), automationMediaRouter);
 app.use('/api/social', requireAuth, socialRouter);
 app.use('/api/lead-ads', requireAuth, leadAdsRouter);
+app.use('/api', webPushRouter);
 
 // Frontend estático (build de Vite). Solo activo si web/dist existe.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

@@ -9,6 +9,7 @@
 import { pool } from '../db.ts';
 import { broadcast } from './ws-manager.ts';
 import { sendPush } from './push.ts';
+import { sendWebPushToUser } from './webpush.ts';
 import type { ModuleKey } from '../auth/perms.ts';
 
 export type NotifyType =
@@ -46,6 +47,13 @@ const CHANNEL_BY_TYPE: Record<NotifyType, string> = {
 };
 const MODULE_BY_TYPE: Partial<Record<NotifyType, ModuleKey>> = {
   new_lead: 'opportunities', new_message: 'conversations',
+};
+const URL_BY_TYPE: Partial<Record<NotifyType, (d: Record<string, string>) => string>> = {
+  new_lead:             (d) => d.opportunityId ? `/leads?o=${d.opportunityId}` : '/leads',
+  new_message:          (d) => d.conversationId ? `/conversations?c=${d.conversationId}` : '/conversations',
+  appointment_booked:   () => '/calendar',
+  appointment_cancelled:() => '/calendar',
+  task_due:             (d) => d.taskId ? `/tasks?t=${d.taskId}` : '/tasks',
 };
 
 // Antispam de mensajes: un push por conversación y usuario cada 2 minutos (memoria del proceso)
@@ -139,6 +147,12 @@ export async function notify(n: NotifyInput): Promise<void> {
     channelId: CHANNEL_BY_TYPE[n.type],
     highPriority: n.type === 'new_lead' || n.type === 'new_message',
   });
+  // Web Push (PWA): a los mismos usuarios con suscripciones de navegador
+  const webUrl = URL_BY_TYPE[n.type]?.(data) ?? '/';
+  for (const userId of targets) {
+    sendWebPushToUser(userId, { title: n.title, body: n.body ?? '', url: webUrl, tag: n.type })
+      .catch((err) => console.error(JSON.stringify({ level: 'warn', msg: 'web push error', err: String(err) })));
+  }
 }
 
 // Versión "dispara y olvida" para caminos donde un fallo del aviso no debe afectar al llamador

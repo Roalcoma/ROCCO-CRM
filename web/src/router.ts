@@ -59,6 +59,7 @@ const routes = [
           { path: 'whatsapp', component: () => import('./views/settings/WhatsAppSettings.vue'), meta: { title: 'Configuración', admin: true } },
           { path: 'social', component: () => import('./views/settings/SocialSettings.vue'), meta: { title: 'Configuración', admin: true } },
           { path: 'lead-ads', component: () => import('./views/settings/LeadAdsSettings.vue'), meta: { title: 'Configuración', admin: true } },
+          { path: 'notifications', component: () => import('./views/settings/NotificationsSettings.vue'), meta: { title: 'Configuración' } },
         ],
       },
     ],

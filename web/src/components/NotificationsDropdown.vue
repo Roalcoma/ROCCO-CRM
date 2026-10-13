@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { Bell } from 'lucide-vue-next';
 import { api } from '../api';
 import type { Notification } from '../types';
+import { useWs } from '../composables/useWs';
 
 const open = ref(false);
 const notifications = ref<Notification[]>([]);
@@ -82,6 +83,10 @@ function onClickOutside(e: MouseEvent) {
 }
 
 let intervalId: ReturnType<typeof setInterval> | null = null;
+
+// Re-fetcha cuando llega una notificación nueva por WS para actualizar el conteo al instante
+const { on } = useWs();
+on('notification:new', () => { fetchNotifications(); });
 
 onMounted(() => {
   fetchNotifications();

@@ -45,6 +45,10 @@ services:
       TELEGRAM_BOT_TOKEN:        ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_CHAT_ID:          ${TELEGRAM_CHAT_ID:-}
       SECRETS_KEY:               ${SECRETS_KEY:-}
+      # Web Push (PWA): claves VAPID; sin ellas las notificaciones del navegador quedan apagadas
+      VAPID_PUBLIC_KEY:          ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY:         ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT:             ${VAPID_SUBJECT:-mailto:admin@rocco.arbolaureo.org}
       # Videos/imágenes de las automatizaciones (se sirven en /m/:token); persistente en el volumen crm_media
       MEDIA_DIR:                 /crm/server/data/media
       # Push de la app móvil (FCM): JSON del service account en ./secrets/fcm.json (opcional;

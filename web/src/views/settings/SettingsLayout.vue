@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { RouterLink, RouterView, useRoute } from 'vue-router';
-import { Building2, Users, GitBranch, Palette, Calendar, MessageCircle, Share2, Megaphone, ChevronDown } from 'lucide-vue-next';
+import { Building2, Users, GitBranch, Palette, Calendar, MessageCircle, Share2, Megaphone, Bell, ChevronDown } from 'lucide-vue-next';
 
 const route = useRoute();
 const mobileNavOpen = ref(false);
@@ -28,6 +28,12 @@ const groups = [
       { to: '/settings/whatsapp', label: 'WhatsApp', icon: MessageCircle },
       { to: '/settings/social', label: 'Redes Sociales', icon: Share2 },
       { to: '/settings/lead-ads', label: 'Lead Ads', icon: Megaphone },
+    ],
+  },
+  {
+    title: 'Dispositivo',
+    items: [
+      { to: '/settings/notifications', label: 'Notificaciones', icon: Bell },
     ],
   },
 ];
