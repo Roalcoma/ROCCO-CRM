@@ -27,3 +27,24 @@ window.addEventListener('unhandledrejection', e => {
 
 registerSW();
 app.mount('#app');
+
+// Diagnóstico de viewport (iPhone instalado): abrir con ?vp=1 muestra las medidas reales
+if (new URLSearchParams(location.search).has('vp')) {
+  const probe = document.createElement('div');
+  probe.style.cssText = 'position:fixed;visibility:hidden;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)';
+  document.body.appendChild(probe);
+  const box = document.createElement('pre');
+  box.style.cssText = 'position:fixed;top:40%;left:8px;right:8px;z-index:9999;background:#13243D;color:#fff;padding:10px;font:12px monospace;white-space:pre-wrap';
+  const show = () => {
+    const cs = getComputedStyle(probe);
+    box.textContent = [
+      `innerHeight ${innerHeight} · screen ${screen.width}x${screen.height}`,
+      `visualViewport ${Math.round(visualViewport?.height ?? 0)} · docEl ${document.documentElement.clientHeight}`,
+      `safe-area top ${cs.paddingTop} · bottom ${cs.paddingBottom}`,
+      `standalone ${matchMedia('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone === true}`,
+    ].join('\n');
+  };
+  document.body.appendChild(box);
+  show();
+  addEventListener('resize', show);
+}
