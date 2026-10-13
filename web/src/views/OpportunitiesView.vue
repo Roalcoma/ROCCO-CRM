@@ -500,8 +500,10 @@ function openCreate() {
   form.value = blankForm();
   showForm.value = true;
 }
+// Abre el chat del contacto por el número de WhatsApp del pipeline (si tiene uno asignado)
 function openConversation(contactId: string) {
-  router.push({ path: '/conversations', query: { contact_id: contactId } });
+  const wa = current.value?.wa_instance_id;
+  router.push({ path: '/conversations', query: { contact_id: contactId, ...(wa ? { wa_instance_id: wa } : {}) } });
 }
 
 async function openEdit(o: Opportunity, tab: 'detalles' | 'notas' = 'detalles') {

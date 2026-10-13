@@ -763,9 +763,11 @@ async function persistRunProgress(
 // Registra en la conversación del chat (si existe) el mensaje que envió la automatización
 async function logOutboundWa(orgId: string, phone: string, message: string, media: StepMedia | null | undefined, instanceId: string | null): Promise<void> {
   const chatJid = `${phone}@s.whatsapp.net`;
-  // La conversación de ese número (si el contacto escribió a varios números, cada uno tiene la suya)
+  // La conversación de ESE número (si el contacto escribió a varios números, cada uno tiene la suya).
+  // Si el chat solo existe en otro número no se registra: el mensaje no salió por ahí.
   const convRes = await pool.query<{ id: string }>(
     `SELECT id FROM conversations WHERE organization_id = $1 AND wa_chat_id = $2
+       AND ($3::uuid IS NULL OR wa_instance_id = $3::uuid OR wa_instance_id IS NULL)
      ORDER BY (wa_instance_id = $3::uuid) IS TRUE DESC LIMIT 1`,
     [orgId, chatJid, instanceId],
   );
@@ -938,10 +940,12 @@ export async function fireWaNewMessageTrigger(
 ): Promise<void> {
   if (!contactId) return;
   try {
+    // config.trigger.wa_instance_id limita la regla a un número; vacío = cualquier número
     const rulesRes = await pool.query<{ id: string }>(
       `SELECT id FROM automation_rules
-       WHERE organization_id = $1 AND trigger_type = 'whatsapp_new_message' AND enabled = true`,
-      [orgId],
+       WHERE organization_id = $1 AND trigger_type = 'whatsapp_new_message' AND enabled = true
+         AND (COALESCE(config->'trigger'->>'wa_instance_id', '') = '' OR config->'trigger'->>'wa_instance_id' = $2::text)`,
+      [orgId, waInstanceId ?? ''],
     );
     for (const rule of rulesRes.rows) {
       await startAutomation(orgId, rule.id, contactId, undefined, waInstanceId);

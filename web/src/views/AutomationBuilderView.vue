@@ -177,6 +177,9 @@ const saving = ref(false);
 const loading = ref(false);
 const errorMsg = ref('');
 const pipelines = ref<Pipeline[]>([]);
+// Números de WhatsApp de la org (el disparador "Nuevo mensaje" puede limitarse a uno)
+const waNumbers = ref<{ id: string; display_name: string; color: string | null }[]>([]);
+const triggerNumberName = computed(() => waNumbers.value.find(n => n.id === triggerConfig.value.wa_instance_id)?.display_name ?? '');
 
 // Selected node: 'trigger' | step.id | null
 const selectedNode = ref<string | null>('trigger');
@@ -207,6 +210,7 @@ function stepMeta(type: string) {
 onMounted(async () => {
   try { pipelines.value = await api.get<Pipeline[]>('/pipelines'); } catch {}
   try { mediaLibrary.value = await api.get<MediaItem[]>('/automation-media'); } catch {}
+  try { waNumbers.value = (await api.get<{ numbers: typeof waNumbers.value }>('/conversations/numbers')).numbers; } catch {}
 
   if (isEdit.value && ruleId.value) {
     loading.value = true;
@@ -409,7 +413,9 @@ function stepPreview(step: Step): string {
                 <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Disparador</p>
                 <p class="text-[13px] font-semibold text-slate-900">{{ triggerMeta(triggerType).label }}</p>
                 <p class="truncate text-[11px] text-slate-500">
-                  {{ triggerType === 'tag_added' && triggerConfig.tag ? `Etiqueta: "${triggerConfig.tag}"` : 'Haz clic para configurar' }}
+                  {{ triggerType === 'tag_added' && triggerConfig.tag ? `Etiqueta: "${triggerConfig.tag}"`
+                    : triggerType === 'whatsapp_new_message' && waNumbers.length > 1 ? `Número: ${triggerNumberName || 'cualquiera'}`
+                    : 'Haz clic para configurar' }}
                 </p>
               </div>
             </div>
@@ -570,6 +576,16 @@ function stepPreview(step: Step): string {
                 <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Etiqueta</label>
                 <input v-model="triggerConfig.tag" class="input" placeholder="ej: interesado, cliente-nuevo…" />
                 <p class="mt-1.5 text-[11px] text-slate-400">Se dispara exactamente cuando esta etiqueta sea añadida a un contacto.</p>
+              </div>
+
+              <!-- Nuevo mensaje de WhatsApp: ¿de qué número? -->
+              <div v-if="triggerType === 'whatsapp_new_message' && waNumbers.length > 1">
+                <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Número de WhatsApp</label>
+                <select v-model="triggerConfig.wa_instance_id" class="input">
+                  <option :value="undefined">Cualquier número</option>
+                  <option v-for="n in waNumbers" :key="n.id" :value="n.id">{{ n.display_name }}</option>
+                </select>
+                <p class="mt-1.5 text-[11px] text-slate-400">Solo se dispara con los chats nuevos que entren por este número. Las respuestas del flujo salen por el mismo número.</p>
               </div>
 
               <!-- Cita agendada: ¿también las citas creadas a mano? -->

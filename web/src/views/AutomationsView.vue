@@ -23,7 +23,7 @@ interface AutoStep {
 }
 
 interface AutoConfig {
-  trigger?: { type: string; tag?: string };
+  trigger?: { type: string; tag?: string; wa_instance_id?: string };
   steps?: AutoStep[];
   [k: string]: unknown;
 }
@@ -49,8 +49,13 @@ const showDetail = ref(false);
 const expandedSteps = ref<Set<string>>(new Set());
 
 const selectedRule = computed(() => rules.value.find(r => r.id === selectedId.value) ?? null);
+// Nombres de los números de WhatsApp (para el disparador limitado a un número)
+const waNumberNames = ref<Record<string, string>>({});
 
 onMounted(async () => {
+  api.get<{ numbers: { id: string; display_name: string }[] }>('/conversations/numbers')
+    .then(r => { waNumberNames.value = Object.fromEntries(r.numbers.map(n => [n.id, n.display_name])); })
+    .catch(() => {});
   try {
     rules.value = await api.get<AutomationRule[]>('/automations');
     if (rules.value.length) selectedId.value = rules.value[0].id;
@@ -146,7 +151,10 @@ function stepPreview(step: AutoStep): string | null {
 function triggerSubtitle(rule: AutomationRule): string {
   const tag = rule.config?.trigger?.tag;
   if (tag) return `Cuando se añade la etiqueta "${tag}"`;
-  if (rule.trigger_type === 'whatsapp_new_message') return 'Primer mensaje de WhatsApp de un número nuevo';
+  if (rule.trigger_type === 'whatsapp_new_message') {
+    const num = waNumberNames.value[rule.config?.trigger?.wa_instance_id ?? ''];
+    return num ? `Primer mensaje de un chat nuevo en ${num}` : 'Primer mensaje de WhatsApp de un número nuevo';
+  }
   if (rule.trigger_type === 'appointment_booked') return 'Cuando alguien agenda una cita en el calendario';
   if (rule.trigger_type === 'appointment_no_show') return 'Cuando una cita se marca como «No asistió»';
   if (rule.trigger_type === 'ig_comment_received') return 'Cuando alguien comenta en un post de Instagram';

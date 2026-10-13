@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue';
 import {
   Plus, Pencil, ChevronUp, ChevronDown, Trash2, X, Search, MoreVertical,
-  Layers, CalendarClock, Hash, Workflow, GripVertical,
+  Layers, CalendarClock, Hash, Workflow, GripVertical, MessageCircle,
 } from 'lucide-vue-next';
 import { api } from '../api';
 import { useDialog } from '../composables/useDialog';
@@ -30,13 +30,22 @@ const dateTime = (d?: string) => d
   : '—';
 
 async function load() { pipelines.value = await api.get<Pipeline[]>('/pipelines'); }
-onMounted(async () => { try { await load(); } finally { loading.value = false; } });
+onMounted(async () => { try { await Promise.all([load(), loadNumbers()]); } finally { loading.value = false; } });
+
+// Números de WhatsApp de la org: cada pipeline puede ir ligado a uno (las conversaciones de sus leads salen por él)
+type WaNumber = { id: string; display_name: string; color: string | null };
+const numbers = ref<WaNumber[]>([]);
+async function loadNumbers() {
+  const r = await api.get<{ numbers: WaNumber[] }>('/conversations/numbers').catch(() => null);
+  numbers.value = r?.numbers ?? [];
+}
+const numberOf = (id?: string | null) => numbers.value.find(n => n.id === id) ?? null;
 
 // ── Editor modal ───────────────────────────────────────────────────────────
 type StageDraft = { id?: string; name: string; color: string };
 const editing = ref<Pipeline | null>(null);
 const isNew = ref(false);
-const form = ref<{ name: string; stages: StageDraft[] }>({ name: '', stages: [] });
+const form = ref<{ name: string; wa_instance_id: string | null; stages: StageDraft[] }>({ name: '', wa_instance_id: null, stages: [] });
 const colorOpen = ref<number | null>(null);
 const saving = ref(false);
 const error = ref('');
@@ -45,7 +54,7 @@ function openEditor(p: Pipeline) {
   editing.value = p;
   isNew.value = false;
   error.value = '';
-  form.value = { name: p.name, stages: p.stages.map(s => ({ id: s.id, name: s.name, color: s.color })) };
+  form.value = { name: p.name, wa_instance_id: p.wa_instance_id ?? null, stages: p.stages.map(s => ({ id: s.id, name: s.name, color: s.color })) };
 }
 function closeEditor() { editing.value = null; colorOpen.value = null; }
 
@@ -141,6 +150,9 @@ async function deletePipeline(p: Pipeline) {
               <td class="hidden px-2 py-4 font-medium text-slate-400 sm:table-cell">{{ i + 1 }}</td>
               <td class="px-4 py-4 sm:px-2">
                 <button class="cursor-pointer text-left font-semibold text-slate-900 transition-colors hover:text-primary" @click="openEditor(p)">{{ p.name }}</button>
+                <span v-if="numbers.length > 1 && numberOf(p.wa_instance_id)" class="ml-2 inline-flex items-center gap-1 align-middle text-[11px] font-semibold" :style="{ color: numberOf(p.wa_instance_id)!.color ?? undefined }">
+                  <MessageCircle class="h-3 w-3" /> {{ numberOf(p.wa_instance_id)!.display_name }}
+                </span>
                 <div class="mt-2 flex flex-wrap gap-1">
                   <span v-for="s in p.stages.slice(0, 8)" :key="s.id" class="h-2 w-7 rounded-full" :style="{ backgroundColor: s.color }" :title="s.name"></span>
                   <span v-if="p.stages.length > 8" class="text-[11px] text-slate-400">+{{ p.stages.length - 8 }}</span>
@@ -204,6 +216,15 @@ async function deletePipeline(p: Pipeline) {
           <div>
             <label class="mb-1.5 block text-sm font-medium text-slate-700">Nombre del pipeline</label>
             <input v-model="form.name" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none" />
+          </div>
+
+          <div v-if="numbers.length > 1">
+            <label class="mb-1.5 block text-sm font-medium text-slate-700">Número de WhatsApp</label>
+            <select v-model="form.wa_instance_id" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none">
+              <option :value="null">Sin número fijo (el último chat del contacto)</option>
+              <option v-for="n in numbers" :key="n.id" :value="n.id">{{ n.display_name }}</option>
+            </select>
+            <p class="mt-1 text-xs text-slate-500">El botón «Conversación» de las tarjetas abre el chat por este número.</p>
           </div>
 
           <div>

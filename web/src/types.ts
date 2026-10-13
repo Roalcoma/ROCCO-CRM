@@ -86,6 +86,7 @@ export interface Stage {
 export interface Pipeline {
   id: string;
   name: string;
+  wa_instance_id?: string | null; // número de WhatsApp por el que se abren sus conversaciones
   created_at?: string;
   updated_at?: string;
   stages: Stage[];

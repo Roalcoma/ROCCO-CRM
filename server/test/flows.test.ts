@@ -8,7 +8,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import { createHmac } from 'node:crypto';
+import { createHmac, randomUUID } from 'node:crypto';
 import pg from 'pg';
 import { encryptSecret } from '../src/secrets.ts';
 import { wantsInfo, captionKeywords, matchesKeyword } from '../src/services/ig-intent.ts';
@@ -880,4 +880,54 @@ test('Facebook: comentario en la página entra a la bandeja y la respuesta sale 
   const sent = callsTo('/fb/v21.0/me/messages').find(c => c.body.recipient?.comment_id === commentId)!;
   assert.ok(sent, 'respuesta privada al comentario');
   assert.equal(sent.body.access_token, pageToken);
+});
+
+// ── Dos números de WhatsApp: cada uno con su automatización y su pipeline ─────
+test('WhatsApp: el disparador limitado a un número solo corre con los chats de ese número; el pipeline guarda su número', async () => {
+  const inst1 = (await one('SELECT id FROM wa_settings WHERE organization_id = $1 AND instance_name = $2', [org.orgId, org.instance])).id;
+  const inst2 = await one(
+    `INSERT INTO wa_settings (organization_id, instance_name, display_name, is_default, session_status)
+     VALUES ($1, $2, 'Ventas', false, 'connected') RETURNING id, webhook_secret`,
+    [org.orgId, `flows-ventas-${stamp}`],
+  );
+
+  // Pipeline de ventas ligado al número 2 (un número de otra cuenta se rechaza)
+  const created = (await api(org.token, 'POST', '/pipelines', { name: 'Ventas #2' })).data;
+  const salesStage = (await api(org.token, 'GET', '/pipelines')).data.find((p: any) => p.id === created.id).stages[0];
+  const edit = (wa: string | null) => api(org.token, 'PUT', `/pipelines/${created.id}/edit`, {
+    name: 'Ventas #2', wa_instance_id: wa, stages: [{ id: salesStage.id, name: 'Nuevo lead', color: '#dbeafe' }],
+  });
+  assert.equal((await edit(randomUUID())).status, 400, 'número ajeno rechazado');
+  assert.equal((await edit(inst2.id)).status, 204);
+  const pipe = (await api(org.token, 'GET', '/pipelines')).data.find((p: any) => p.id === created.id);
+  assert.equal(pipe.wa_instance_id, inst2.id);
+
+  const rule = async (name: string, wa: string, pipeline: string, stage: string) => (await api(org.token, 'POST', '/automations', {
+    name, trigger_type: 'whatsapp_new_message',
+    config: { trigger: { wa_instance_id: wa }, steps: [{ id: 's1', type: 'create_opportunity', title: `${name} {{contact.name}}`, pipeline_id: pipeline, stage_id: stage }] },
+  })).data.id;
+  const recruit = await rule('Reclutamiento', inst1, org.pipeline, org.stage);
+  const sales = await rule('Venta', inst2.id, created.id, salesStage.id);
+
+  // Mensaje nuevo por el número 2
+  const phone = `58416${rnd()}`;
+  await api(null, 'POST', `/wa/webhook/${inst2.webhook_secret}`, {
+    event: 'messages.upsert', instance: `flows-ventas-${stamp}`,
+    data: {
+      key: { remoteJid: `${phone}@s.whatsapp.net`, fromMe: false, id: `WA-${rnd()}${rnd()}` },
+      pushName: 'Luis Venta', messageType: 'conversation', message: { conversation: 'Quiero cotizar' },
+      messageTimestamp: Math.floor(Date.now() / 1000),
+    },
+  });
+  const opp = await until('lead en el pipeline de ventas', () => one(
+    `SELECT o.* FROM opportunities o JOIN contacts c ON c.id = o.contact_id
+     WHERE o.organization_id = $1 AND c.phone = $2 AND o.pipeline_id = $3`, [org.orgId, phone, created.id]));
+  assert.equal(opp.title, 'Venta Luis Venta');
+  const runs = async (ruleId: string) => (await one(
+    `SELECT count(*)::int AS n FROM automation_runs r JOIN contacts c ON c.id = r.contact_id
+     WHERE r.automation_id = $1 AND c.phone = $2`, [ruleId, phone])).n;
+  assert.equal(await runs(sales), 1);
+  assert.equal(await runs(recruit), 0, 'la regla del número 1 no corre con un chat del número 2');
+
+  await db.query('DELETE FROM automation_rules WHERE id = ANY($1::uuid[])', [[recruit, sales]]);
 });

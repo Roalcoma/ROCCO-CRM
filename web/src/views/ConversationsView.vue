@@ -249,8 +249,11 @@ async function loadNumbers() {
   // Un número guardado que ya no existe deja de filtrar
   if (numberFilter.value && !numberById.value[numberFilter.value]) numberFilter.value = '';
 }
+// Al entrar desde una oportunidad se cambia el filtro y se carga la lista a mano (sin doble carga)
+let skipFilterReload = false;
 watch(numberFilter, v => {
   try { localStorage.setItem(NUMBER_KEY, v); } catch { /* sin storage */ }
+  if (skipFilterReload) { skipFilterReload = false; return; }
   loadConversations();
 });
 
@@ -324,14 +327,24 @@ function scrollToBottom(smooth = false) {
 const route = useRoute();
 
 onMounted(async () => {
-  await Promise.all([loadNumbers(), loadConversations()]);
   // Si llegamos desde una oportunidad/contacto con contact_id, auto-seleccionar (o crear) conversación
   const contactIdParam = route.query.contact_id as string | undefined;
+  // Número pedido (p. ej. el del pipeline de la oportunidad): se abre el chat de ese número, o se crea por él
+  const waParam = route.query.wa_instance_id as string | undefined;
+  await loadNumbers();
+  const wantNumber = waParam && numberById.value[waParam] ? waParam : '';
+  // Si la bandeja está filtrada por otro número, se pasa al pedido para que el chat aparezca en la lista
+  if (contactIdParam && wantNumber && numberFilter.value && numberFilter.value !== wantNumber) {
+    skipFilterReload = true;
+    numberFilter.value = wantNumber;
+  }
+  await loadConversations();
   if (contactIdParam) {
-    let conv = conversations.value.find(c => c.contact_id === contactIdParam);
+    let conv = conversations.value.find(c => c.contact_id === contactIdParam && (!wantNumber || c.wa_instance_id === wantNumber));
     if (!conv) {
       // Puede ser una conversación antigua que no entró en la primera página
-      const data = await api.get<{ conversations: Conversation[] }>(`/conversations?status=all&limit=1&contact_id=${encodeURIComponent(contactIdParam)}`).catch(() => null);
+      const byNumber = wantNumber ? `&wa_instance_id=${encodeURIComponent(wantNumber)}` : '';
+      const data = await api.get<{ conversations: Conversation[] }>(`/conversations?status=all&limit=1&contact_id=${encodeURIComponent(contactIdParam)}${byNumber}`).catch(() => null);
       conv = data?.conversations[0];
       if (conv) conversations.value.unshift(conv);
     }
@@ -344,6 +357,7 @@ onMounted(async () => {
         if (contact.phone) {
           newPhone.value = contact.phone;
           newName.value = [contact.first_name, contact.last_name ?? ''].join(' ').trim();
+          if (wantNumber) newChatNumber.value = wantNumber;
           await createChat(contact.id);
         }
       } catch { /* Si no tiene teléfono o hay error, abrir vista vacía */ }

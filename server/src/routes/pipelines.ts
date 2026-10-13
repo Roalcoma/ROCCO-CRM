@@ -16,8 +16,8 @@ async function ownedPipeline(id: string, orgId: string) {
 // ── Listado con etapas anidadas ──────────────────────────────────────────────
 pipelinesRouter.get('/', async (req, res) => {
   const orgId = req.auth!.organizationId;
-  const pipelines = await query<{ id: string; name: string; created_at: string; updated_at: string }>(
-    'SELECT id, name, created_at, updated_at FROM pipelines WHERE organization_id = $1 ORDER BY created_at',
+  const pipelines = await query<{ id: string; name: string; wa_instance_id: string | null; created_at: string; updated_at: string }>(
+    'SELECT id, name, wa_instance_id, created_at, updated_at FROM pipelines WHERE organization_id = $1 ORDER BY created_at',
     [orgId],
   );
   const stages = await query<{ id: string; pipeline_id: string; name: string; position: number; color: string }>(
@@ -103,6 +103,8 @@ pipelinesRouter.put('/:id/stages/order', async (req, res) => {
 // La posición se toma del orden del array. Rechaza borrar etapas con oportunidades.
 const bulkSchema = z.object({
   name: z.string().min(1),
+  // Número de WhatsApp del pipeline (undefined = no tocar, null = ninguno)
+  wa_instance_id: z.string().uuid().nullable().optional(),
   stages: z.array(z.object({
     id: z.string().uuid().optional(),
     name: z.string().min(1),
@@ -116,7 +118,11 @@ pipelinesRouter.put('/:id/edit', async (req, res) => {
   if (!(await ownedPipeline(req.params.id, req.auth!.organizationId)))
     return res.status(404).json({ error: 'Pipeline no encontrado' });
 
-  const { name, stages } = parsed.data;
+  const { name, stages, wa_instance_id } = parsed.data;
+  if (wa_instance_id) {
+    const own = await queryOne('SELECT 1 FROM wa_settings WHERE id=$1 AND organization_id=$2', [wa_instance_id, req.auth!.organizationId]);
+    if (!own) return res.status(400).json({ error: 'Número de WhatsApp no válido' });
+  }
   const keepIds = stages.filter(s => s.id).map(s => s.id!);
   const existing = await query<{ id: string }>('SELECT id FROM pipeline_stages WHERE pipeline_id=$1', [req.params.id]);
   const toDelete = existing.map(e => e.id).filter(id => !keepIds.includes(id));
@@ -131,6 +137,8 @@ pipelinesRouter.put('/:id/edit', async (req, res) => {
   try {
     await client.query('BEGIN');
     await client.query('UPDATE pipelines SET name=$1, updated_at=now() WHERE id=$2', [name, req.params.id]);
+    if (wa_instance_id !== undefined)
+      await client.query('UPDATE pipelines SET wa_instance_id=$1 WHERE id=$2', [wa_instance_id, req.params.id]);
     if (toDelete.length)
       await client.query('DELETE FROM pipeline_stages WHERE id = ANY($1::uuid[])', [toDelete]);
     for (let i = 0; i < stages.length; i++) {
