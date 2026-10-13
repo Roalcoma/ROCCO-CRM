@@ -5,11 +5,12 @@ import { computed, ref, watch, onMounted } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import {
   MessagesSquare, CalendarDays, TrendingUp, BookUser, Ellipsis,
-  LayoutGrid, ListChecks, Zap, SlidersHorizontal, UserCog, ArrowLeftRight, LogOut, Search, X,
+  LayoutGrid, ListChecks, Zap, SlidersHorizontal, UserCog, ArrowLeftRight, LogOut, Search, X, Bell,
 } from 'lucide-vue-next';
 import { useAuthStore } from '../stores/auth';
 import { api } from '../api';
 import { useWs } from '../composables/useWs';
+import { pushState } from '../push';
 
 const emit = defineEmits<{ switchAccount: [] }>();
 
@@ -29,6 +30,7 @@ const moreItems = computed(() => [
   { to: '/tasks',            label: 'Tareas',           icon: ListChecks,        show: auth.can('tasks') },
   { to: '/automations',      label: 'Automatizaciones', icon: Zap,               show: auth.can('automations') },
   { to: '/settings',         label: 'Ajustes',          icon: SlidersHorizontal, show: auth.isAdmin },
+  { to: '/notifications',    label: 'Notificaciones',   icon: Bell,              show: true },
   { to: '/settings/profile', label: 'Mi perfil',        icon: UserCog,           show: true },
 ].filter(i => i.show));
 
@@ -38,6 +40,15 @@ const moreActive = computed(() => !tabs.value.some(t => isActive(t.match)));
 // ── Hoja "Más" ───────────────────────────────────────────────────────────────
 const moreOpen = ref(false);
 watch(() => route.fullPath, () => { moreOpen.value = false; });
+
+// Punto naranja en "Notificaciones" mientras se puedan activar y estén apagadas
+const pushOff = ref(false);
+async function checkPush() {
+  const st = await pushState().catch(() => 'unsupported');
+  pushOff.value = st === 'off' || st === 'install-first';
+}
+onMounted(checkPush);
+watch(moreOpen, v => { if (v) checkPush(); });
 
 const query = ref('');
 function search() {
@@ -101,7 +112,10 @@ on('ws:reconnect', loadUnread);
         @click="moreOpen = !moreOpen"
       >
         <span v-if="moreActive" class="absolute inset-x-5 top-0 h-[3px] bg-[#F69008]"></span>
-        <Ellipsis class="h-[22px] w-[22px]" />
+        <span class="relative">
+          <Ellipsis class="h-[22px] w-[22px]" />
+          <span v-if="pushOff" class="presence absolute -right-1 -top-0.5 h-2 w-2 bg-[#F69008]"></span>
+        </span>
         <span :class="moreActive ? 'font-semibold' : ''">Más</span>
       </button>
     </div>
@@ -143,7 +157,8 @@ on('ws:reconnect', loadUnread);
                 ? 'bg-primary-light font-semibold text-ink' : 'text-slate-700 active:bg-slate-100'"
             >
               <component :is="i.icon" class="h-5 w-5 text-slate-500" />
-              {{ i.label }}
+              <span class="flex-1">{{ i.label }}</span>
+              <span v-if="i.to === '/notifications' && pushOff" class="presence h-2.5 w-2.5 bg-[#F69008]" aria-label="Desactivadas"></span>
             </RouterLink>
             <button
               class="flex w-full cursor-pointer items-center gap-3 px-3 py-3 text-[15px] text-slate-700 active:bg-slate-100"
@@ -168,8 +183,8 @@ on('ws:reconnect', loadUnread);
 </template>
 
 <style scoped>
-/* La barra respeta la zona del gesto de inicio del iPhone (app instalada) */
-.tabbar { padding-bottom: env(safe-area-inset-bottom); }
+/* Zona del gesto de inicio del iPhone: solo un margen mínimo bajo los íconos (sin franja vacía) */
+.tabbar { padding-bottom: max(calc(env(safe-area-inset-bottom) - 20px), 0px); }
 .tab { -webkit-tap-highlight-color: transparent; min-height: var(--tap); }
 .sheet-panel { padding-bottom: calc(env(safe-area-inset-bottom) + 0.5rem); max-height: 85dvh; overflow-y: auto; }
 

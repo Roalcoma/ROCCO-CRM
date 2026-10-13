@@ -42,6 +42,7 @@ const routes = [
       { path: 'automations', component: () => import('./views/AutomationsView.vue'), meta: { title: 'Automatizaciones', module: 'automations' } },
       { path: 'automations/new', component: () => import('./views/AutomationBuilderView.vue'), meta: { title: 'Nueva automatización', admin: true } },
       { path: 'automations/:id/edit', component: () => import('./views/AutomationBuilderView.vue'), meta: { title: 'Editar automatización', admin: true } },
+      { path: 'notifications', component: () => import('./views/settings/NotificationsSettings.vue'), meta: { title: 'Notificaciones' } },
       { path: 'settings/profile', component: () => import('./views/settings/ProfileView.vue'), meta: { title: 'Mi Perfil' } },
       { path: 'settings/calendar', component: () => import('./views/settings/CalendarSettings.vue'), meta: { title: 'Configuración > Calendario', module: 'calendar' } },
       { path: 'settings/calendars', component: () => import('./views/settings/CalendarsSettings.vue'), meta: { title: 'Mis calendarios', module: 'calendar' } },
@@ -59,7 +60,7 @@ const routes = [
           { path: 'whatsapp', component: () => import('./views/settings/WhatsAppSettings.vue'), meta: { title: 'Configuración', admin: true } },
           { path: 'social', component: () => import('./views/settings/SocialSettings.vue'), meta: { title: 'Configuración', admin: true } },
           { path: 'lead-ads', component: () => import('./views/settings/LeadAdsSettings.vue'), meta: { title: 'Configuración', admin: true } },
-          { path: 'notifications', component: () => import('./views/settings/NotificationsSettings.vue'), meta: { title: 'Configuración' } },
+          { path: 'notifications', redirect: '/notifications' },
         ],
       },
     ],
@@ -83,7 +84,7 @@ router.beforeEach(async (to) => {
   // Guard normal del CRM
   const authed = !!getToken();
   if (!to.meta.public && !authed) return '/login';
-  if (to.path === '/login' && authed) return '/dashboard';
+  if (to.path === '/login' && authed) return '/';
   if (!authed) return;
 
   const auth = useAuthStore();

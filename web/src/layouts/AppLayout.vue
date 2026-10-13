@@ -4,7 +4,7 @@ import { RouterLink, RouterView, useRouter, useRoute } from 'vue-router';
 import {
   LayoutGrid, BookUser, TrendingUp, ListChecks,
   CalendarDays, MessagesSquare, LogOut, Search,
-  SlidersHorizontal, ChevronLeft, ChevronRight, ChevronDown, Zap, UserCog, ChevronsUpDown,
+  SlidersHorizontal, ChevronLeft, ChevronRight, ChevronDown, Zap, UserCog, ChevronsUpDown, Bell,
 } from 'lucide-vue-next';
 import { useAuthStore } from '../stores/auth';
 import { api } from '../api';
@@ -16,6 +16,7 @@ import AccountSwitcher from '../components/AccountSwitcher.vue';
 import ForcePasswordChange from '../components/ForcePasswordChange.vue';
 import WaDownBanner from '../components/WaDownBanner.vue';
 import MobileTabBar from '../components/MobileTabBar.vue';
+import PushPrompt from '../components/PushPrompt.vue';
 import { hideMobileTabBar } from '../composables/useMobileNav';
 import { useWs } from '../composables/useWs';
 import { showToast } from '../composables/useToast';
@@ -177,7 +178,7 @@ const s = computed(() => isDark.value
 </script>
 
 <template>
-  <div class="flex h-dvh bg-canvas text-slate-900">
+  <div class="fixed inset-0 flex bg-canvas text-slate-900">
 
     <!-- ── Sidebar wrapper (solo escritorio; en móvil va la barra inferior) ── -->
     <div v-if="!isMobile" class="relative z-10 flex-shrink-0">
@@ -420,6 +421,14 @@ const s = computed(() => isDark.value
                   <UserCog class="h-4 w-4 text-slate-400" />
                   Mi Perfil
                 </RouterLink>
+                <RouterLink
+                  to="/notifications"
+                  class="flex w-full items-center gap-2 px-3.5 py-2.5 text-sm text-slate-700 transition-colors hover:bg-slate-50"
+                  @click="userMenuOpen = false"
+                >
+                  <Bell class="h-4 w-4 text-slate-400" />
+                  Notificaciones
+                </RouterLink>
                 <!-- Logout -->
                 <button
                   class="flex w-full cursor-pointer items-center gap-2 px-3.5 py-2.5 text-sm text-red-500 transition-colors hover:bg-red-50"
@@ -435,6 +444,7 @@ const s = computed(() => isDark.value
       </header>
 
       <WaDownBanner v-if="auth.isAdmin" />
+      <PushPrompt />
 
       <!-- Main content -->
       <main class="relative flex-1 overflow-auto">

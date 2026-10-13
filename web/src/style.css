@@ -93,6 +93,7 @@
 
 html {
   font-family: var(--font-sans);
+  background: var(--color-canvas);
 }
 
 h1, h2, .font-display {
