@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { Phone, Mail, StickyNote, PanelRightOpen, Tag, MessageCircle, Globe } from 'lucide-vue-next';
+import { Phone, Mail, StickyNote, PanelRightOpen, Tag, MessageCircle, Globe, ChevronDown } from 'lucide-vue-next';
 import type { Opportunity } from '../types';
 import type { CardConfig } from '../cardConfig';
 import AppointmentBadge from './AppointmentBadge.vue';
 
-const props = defineProps<{ opp: Opportunity; config: CardConfig }>();
+// stage: si se pasa (móvil), la tarjeta muestra un botón para cambiar de etapa sin arrastrar
+const props = defineProps<{ opp: Opportunity; config: CardConfig; stage?: { name: string; color: string } }>();
 const emit = defineEmits<{
+  changeStage: [];
   action: [tab: 'detalles' | 'notas'];
   openConversation: [contactId: string];
 }>();
@@ -102,6 +104,19 @@ const nameInitials = (n: string) => n.split(' ').map(w => w[0]).slice(0, 2).join
     <div class="mt-2">
       <AppointmentBadge :opportunity-id="opp.id" />
     </div>
+
+    <!-- Cambiar de etapa (móvil): reemplaza el arrastre -->
+    <button
+      v-if="stage"
+      class="mt-2.5 flex w-full cursor-pointer items-center gap-2 border border-slate-200 bg-white px-3 py-2 text-left text-[13px] font-semibold text-slate-700 active:bg-slate-50"
+      :aria-label="`Etapa: ${stage.name}. Cambiar de etapa`"
+      @click.stop="emit('changeStage')"
+    >
+      <span class="h-2.5 w-2.5 flex-shrink-0 ring-1 ring-black/20" :style="{ backgroundColor: stage.color }"></span>
+      <span class="min-w-0 flex-1 truncate">{{ stage.name }}</span>
+      <span class="text-[11px] font-medium text-slate-400">Mover</span>
+      <ChevronDown class="h-4 w-4 text-slate-400" />
+    </button>
 
     <!-- Fila de acciones rápidas (estilo GHL) -->
     <div class="mt-2.5 flex items-center gap-0.5 border-t border-slate-100 pt-2 text-slate-400">

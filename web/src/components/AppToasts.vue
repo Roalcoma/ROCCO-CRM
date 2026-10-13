@@ -15,6 +15,8 @@ import { toasts, dismissToast } from '../composables/useToast';
           <CheckCircle2 v-else-if="t.kind === 'success'" class="mt-0.5 h-4 w-4 flex-shrink-0" />
           <Info v-else class="mt-0.5 h-4 w-4 flex-shrink-0 text-[#F69008]" />
           <p class="min-w-0 flex-1 break-words leading-snug">{{ t.message }}</p>
+          <button v-if="t.action" class="-my-0.5 flex-shrink-0 cursor-pointer px-1.5 py-0.5 text-sm font-bold text-white underline underline-offset-2"
+                  @click="t.action.run(); dismissToast(t.id)">{{ t.action.label }}</button>
           <button class="-mr-1 flex-shrink-0 rounded p-0.5 opacity-70 transition-opacity hover:opacity-100"
                   aria-label="Cerrar aviso" @click="dismissToast(t.id)">
             <X class="h-4 w-4" />

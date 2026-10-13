@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, nextTick } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useDragAutoScroll } from '../composables/useDragAutoScroll';
 import { useWs } from '../composables/useWs';
 import { useRoute, useRouter } from 'vue-router';
@@ -20,6 +20,7 @@ import BizSelect from '../components/BizSelect.vue';
 import AdSourceCard from '../components/AdSourceCard.vue';
 import { normalizeCardConfig, type CardConfig } from '../cardConfig';
 import { useAuthStore } from '../stores/auth';
+import { showToast } from '../composables/useToast';
 
 const KNOWN_SOURCES = ['whatsapp','facebook','instagram','tiktok','google','linkedin','referido','sitio_web','email','llamada'];
 
@@ -350,7 +351,45 @@ function moveInTotals(o: Opportunity, from: string, to: string) {
 function onDragStart(id: string) { dragId.value = id; }
 async function onDrop(stageId: string) {
   const id = dragId.value; dragId.value = null;
-  if (!id) return;
+  if (id) await moveOpp(id, stageId);
+}
+
+// ── Móvil: una columna a la vez, pestañas de etapas y hoja "Mover a…" (sin arrastrar) ──
+const isMobile = ref(window.innerWidth < 768);
+const onResize = () => { isMobile.value = window.innerWidth < 768; };
+onMounted(() => window.addEventListener('resize', onResize));
+onUnmounted(() => window.removeEventListener('resize', onResize));
+
+const activeStageIdx = ref(0);
+function onBoardScroll() {
+  const el = boardEl.value;
+  if (!isMobile.value || !el) return;
+  const col = el.firstElementChild as HTMLElement | null;
+  if (col) activeStageIdx.value = Math.round(el.scrollLeft / (col.offsetWidth + 12));
+}
+function goToStage(i: number) {
+  activeStageIdx.value = i;
+  const col = boardEl.value?.children[i] as HTMLElement | undefined;
+  col?.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' });
+}
+watch(currentId, () => { activeStageIdx.value = 0; boardEl.value?.scrollTo({ left: 0 }); });
+
+const stageSheetOpp = ref<Opportunity | null>(null);
+async function pickStage(stageId: string) {
+  const opp = stageSheetOpp.value;
+  stageSheetOpp.value = null;
+  if (!opp || opp.stage_id === stageId) return;
+  const from = opp.stage_id;
+  try {
+    await moveOpp(opp.id, stageId);
+    showToast(`Movido a ${stageById.value[stageId]?.name ?? 'otra etapa'}`, 'success', 5000,
+      { label: 'Deshacer', run: () => { moveOpp(opp.id, from).catch(() => showToast('No se pudo deshacer', 'error')); } });
+  } catch {
+    showToast('No se pudo mover la oportunidad', 'error');
+  }
+}
+
+async function moveOpp(id: string, stageId: string) {
   const opp = opps.value.find(o => o.id === id);
   if (!opp || opp.stage_id === stageId) return;
   const from = opp.stage_id;
@@ -843,11 +882,24 @@ async function deleteNote(id: string) {
 
     <!-- Tablero kanban -->
     <LoadingState v-if="loading" label="Cargando oportunidades…" />
-    <div v-else-if="viewMode === 'board'" class="flex flex-1 gap-3 overflow-x-auto bg-slate-100/60 p-3 sm:gap-4 sm:p-6" ref="boardEl" @dragover="autoScroll.onDragOver" @drop="autoScroll.stop" @dragend="autoScroll.stop">
+    <!-- Móvil: pestañas de etapas (una columna a la vez) -->
+    <div v-if="!loading && viewMode === 'board' && isMobile" class="stage-tabs flex flex-shrink-0 gap-1.5 overflow-x-auto border-b border-slate-200 bg-white px-3 py-2">
+      <button
+        v-for="(stage, i) in current?.stages ?? []" :key="stage.id"
+        class="flex flex-shrink-0 cursor-pointer items-center gap-1.5 border px-3 py-1.5 text-[13px] font-semibold whitespace-nowrap"
+        :class="activeStageIdx === i ? 'border-ink bg-ink text-white' : 'border-slate-200 bg-white text-slate-600'"
+        @click="goToStage(i)"
+      >
+        <span class="h-2 w-2 ring-1 ring-black/20" :style="{ backgroundColor: stage.color }"></span>
+        {{ stage.name }}
+        <span class="text-[11px] font-bold" :class="activeStageIdx === i ? 'text-white/70' : 'text-slate-400'">{{ stageCount(stage.id) }}</span>
+      </button>
+    </div>
+    <div v-if="!loading && viewMode === 'board'" class="flex flex-1 gap-3 overflow-x-auto bg-slate-100/60 p-3 max-md:snap-x max-md:snap-mandatory max-md:scroll-px-3 sm:gap-4 sm:p-6" ref="boardEl" @scroll.passive="onBoardScroll" @dragover="autoScroll.onDragOver" @drop="autoScroll.stop" @dragend="autoScroll.stop">
       <div
         v-for="stage in current?.stages ?? []"
         :key="stage.id"
-        class="flex w-[calc(100vw-3.5rem)] flex-shrink-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-card sm:w-80"
+        class="flex w-[calc(100vw-1.5rem)] flex-shrink-0 snap-start flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-card md:w-80"
         @dragover.prevent
         @drop="onDrop(stage.id)"
       >
@@ -879,9 +931,11 @@ async function deleteNote(id: string) {
               :key="opp.id"
               :opp="opp"
               :config="cardConfig"
-              draggable="true"
-              class="cursor-grab active:cursor-grabbing"
+              :stage="isMobile ? stageById[opp.stage_id] : undefined"
+              :draggable="!isMobile"
+              :class="isMobile ? '' : 'cursor-grab active:cursor-grabbing'"
               @dragstart="onDragStart(opp.id)"
+              @change-stage="stageSheetOpp = opp"
               @click="openEdit(opp)"
               @action="(tab: 'detalles' | 'notas') => openEdit(opp, tab)"
               @open-conversation="openConversation"
@@ -908,7 +962,7 @@ async function deleteNote(id: string) {
     </div>
 
     <!-- Vista de lista -->
-    <div v-else class="flex-1 overflow-auto bg-slate-100/40 p-6" @scroll.passive="onScrollEnd($event)">
+    <div v-else-if="!loading" class="flex-1 overflow-auto bg-slate-100/40 p-6" @scroll.passive="onScrollEnd($event)">
       <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-card">
         <table class="data-table w-full text-sm">
           <thead>
@@ -1198,6 +1252,36 @@ async function deleteNote(id: string) {
         @close="showCustomize = false"
       />
     </Transition>
+
+    <!-- Móvil: hoja "Mover a…" para cambiar de etapa sin arrastrar -->
+    <Teleport to="body">
+      <Transition name="stage-sheet">
+        <div v-if="stageSheetOpp" class="fixed inset-0 z-[150] flex flex-col justify-end">
+          <div class="absolute inset-0 bg-ink/40" @click="stageSheetOpp = null" />
+          <div class="stage-sheet-panel relative max-h-[80dvh] overflow-y-auto bg-white shadow-lg">
+            <div class="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+              <div class="min-w-0">
+                <p class="font-display text-base font-bold text-ink">Mover a…</p>
+                <p class="truncate text-xs text-slate-500">{{ stageSheetOpp.title }}</p>
+              </div>
+              <button class="cursor-pointer p-1.5 text-slate-500" aria-label="Cerrar" @click="stageSheetOpp = null"><X class="h-5 w-5" /></button>
+            </div>
+            <div class="py-1">
+              <button
+                v-for="stage in current?.stages ?? []" :key="stage.id"
+                class="flex w-full cursor-pointer items-center gap-3 px-4 py-3.5 text-left text-[15px]"
+                :class="stage.id === stageSheetOpp.stage_id ? 'bg-primary-light font-semibold text-ink' : 'text-slate-700 active:bg-slate-100'"
+                @click="pickStage(stage.id)"
+              >
+                <span class="h-3 w-3 flex-shrink-0 ring-1 ring-black/20" :style="{ backgroundColor: stage.color }"></span>
+                <span class="flex-1">{{ stage.name }}</span>
+                <Check v-if="stage.id === stageSheetOpp.stage_id" class="h-5 w-5 text-[#D97706]" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -1241,4 +1325,13 @@ async function deleteNote(id: string) {
 }
 .kanban-load-more:hover:not(:disabled) { border-color: #F69008; color: #D97706; background: rgba(246,144,8,0.05); }
 .kanban-load-more:disabled { cursor: default; opacity: 0.7; }
+
+/* Móvil: pestañas de etapas sin barra de scroll y hoja "Mover a…" */
+.stage-tabs { scrollbar-width: none; }
+.stage-tabs::-webkit-scrollbar { display: none; }
+.stage-sheet-panel { padding-bottom: env(safe-area-inset-bottom); }
+.stage-sheet-enter-active, .stage-sheet-leave-active { transition: opacity 160ms ease; }
+.stage-sheet-enter-active .stage-sheet-panel, .stage-sheet-leave-active .stage-sheet-panel { transition: transform 220ms cubic-bezier(0.4, 0, 0.2, 1); }
+.stage-sheet-enter-from, .stage-sheet-leave-to { opacity: 0; }
+.stage-sheet-enter-from .stage-sheet-panel, .stage-sheet-leave-to .stage-sheet-panel { transform: translateY(100%); }
 </style>
