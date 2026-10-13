@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import NavBar from './components/NavBar.vue';
 import HeroSection from './components/HeroSection.vue';
-import AppMockup from './components/AppMockup.vue';
-import ChannelsBar from './components/ChannelsBar.vue';
-import ProblemSection from './components/ProblemSection.vue';
+import AboutSection from './components/AboutSection.vue';
+import RoccoIntro from './components/RoccoIntro.vue';
 import FeaturesSection from './components/FeaturesSection.vue';
-import HowItWorks from './components/HowItWorks.vue';
+import AutomationFlow from './components/AutomationFlow.vue';
+import ServicesSection from './components/ServicesSection.vue';
 import PricingSection from './components/PricingSection.vue';
 import FaqSection from './components/FaqSection.vue';
 import CtaSection from './components/CtaSection.vue';
@@ -17,11 +17,11 @@ import WhatsAppFloat from './components/WhatsAppFloat.vue';
   <NavBar />
   <main>
     <HeroSection />
-    <AppMockup />
-    <ChannelsBar />
-    <ProblemSection />
+    <AboutSection />
+    <RoccoIntro />
     <FeaturesSection />
-    <HowItWorks />
+    <AutomationFlow />
+    <ServicesSection />
     <PricingSection />
     <FaqSection />
     <CtaSection />

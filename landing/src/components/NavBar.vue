@@ -1,69 +1,66 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
+import { CRM_URL, waLink } from '../config';
+import ArbolLogo from './ArbolLogo.vue';
+import Icon from './Icon.vue';
 
-const CRM_URL = 'https://rocco.arbolaureo.org';
-
-const navLinks = [
-  { href: '#funcionalidades', label: 'Funcionalidades' },
-  { href: '#como-funciona',   label: 'Cómo funciona' },
-  { href: '#precio',          label: 'Precio' },
-  { href: '#faq',             label: 'FAQ' },
+const links = [
+  { href: '#nosotros',  label: 'Nosotros' },
+  { href: '#rocco',     label: 'Rocco CRM' },
+  { href: '#servicios', label: 'Servicios' },
+  { href: '#precio',    label: 'Precio' },
+  { href: '#faq',       label: 'FAQ' },
 ];
 
 const scrolled = ref(false);
+const open = ref(false);
+const onScroll = () => { scrolled.value = window.scrollY > 24; };
 
-function onScroll() {
-  scrolled.value = window.scrollY > 60;
-}
-
-onMounted(() => window.addEventListener('scroll', onScroll, { passive: true }));
+onMounted(() => { onScroll(); window.addEventListener('scroll', onScroll, { passive: true }); });
 onUnmounted(() => window.removeEventListener('scroll', onScroll));
 </script>
 
 <template>
-  <nav
-    class="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
-    :class="scrolled ? 'bg-white shadow-sm' : 'bg-transparent'"
+  <header
+    class="fixed inset-x-0 top-0 z-50 transition-all duration-300"
+    :class="scrolled || open ? 'bg-ink/90 backdrop-blur-md border-b border-white/10' : 'bg-transparent border-b border-transparent'"
   >
-    <div class="max-w-6xl mx-auto px-5 h-16 flex items-center justify-between">
-      <a href="#" class="flex items-center gap-2.5">
-        <div class="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-          </svg>
+    <nav class="max-w-7xl mx-auto px-5 h-[72px] flex items-center justify-between" aria-label="Principal">
+      <a href="#top" aria-label="Árbol Áureo, inicio"><ArbolLogo /></a>
+
+      <div class="hidden lg:flex items-center gap-8">
+        <a v-for="l in links" :key="l.href" :href="l.href"
+           class="text-sm text-white/70 hover:text-white transition-colors">{{ l.label }}</a>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <a :href="`${CRM_URL}/login`" class="hidden md:inline-flex text-sm text-white/70 hover:text-white px-3 py-2 transition-colors">
+          Entrar a Rocco
+        </a>
+        <a :href="waLink('Hola Árbol Áureo, quiero hablar sobre mi negocio')" target="_blank" rel="noopener"
+           class="btn btn-gold !py-2.5 !px-4 text-sm hidden sm:inline-flex">
+          Hablemos
+        </a>
+        <button class="lg:hidden w-10 h-10 grid place-items-center text-white rounded-md hover:bg-white/10"
+                :aria-expanded="open" aria-controls="mobile-menu" :aria-label="open ? 'Cerrar menú' : 'Abrir menú'"
+                @click="open = !open">
+          <Icon :name="open ? 'x' : 'menu'" class="w-5 h-5" />
+        </button>
+      </div>
+    </nav>
+
+    <Transition
+      enter-active-class="transition duration-200 ease-out" enter-from-class="opacity-0 -translate-y-2"
+      leave-active-class="transition duration-150 ease-in" leave-to-class="opacity-0 -translate-y-2"
+    >
+      <div v-if="open" id="mobile-menu" class="lg:hidden border-t border-white/10 px-5 pb-6 pt-2">
+        <a v-for="l in links" :key="l.href" :href="l.href" @click="open = false"
+           class="block py-3 text-white/80 hover:text-white border-b border-white/5">{{ l.label }}</a>
+        <div class="grid grid-cols-2 gap-3 mt-5">
+          <a :href="`${CRM_URL}/login`" class="btn btn-ghost text-sm">Entrar a Rocco</a>
+          <a :href="waLink('Hola Árbol Áureo, quiero hablar sobre mi negocio')" target="_blank" rel="noopener" class="btn btn-gold text-sm">Hablemos</a>
         </div>
-        <span class="font-bold text-lg transition-colors" :class="scrolled ? 'text-gray-900' : 'text-white'">
-          Rocco CRM
-        </span>
-      </a>
-
-      <div class="hidden md:flex items-center gap-8">
-        <a
-          v-for="link in navLinks" :key="link.href"
-          :href="link.href"
-          class="text-sm font-medium transition-colors"
-          :class="scrolled ? 'text-gray-600 hover:text-gray-900' : 'text-white/80 hover:text-white'"
-        >
-          {{ link.label }}
-        </a>
       </div>
-
-      <div class="flex items-center gap-3">
-        <a
-          :href="`${CRM_URL}/login`"
-          class="hidden md:block text-sm font-medium transition-colors"
-          :class="scrolled ? 'text-gray-600 hover:text-gray-900' : 'text-white/80 hover:text-white'"
-        >
-          Iniciar sesión
-        </a>
-        <a
-          :href="`${CRM_URL}/login`"
-          class="bg-primary hover:bg-primary-dark text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors shadow-lg shadow-primary/30"
-        >
-          Prueba 7 días gratis
-        </a>
-      </div>
-    </div>
-  </nav>
+    </Transition>
+  </header>
 </template>

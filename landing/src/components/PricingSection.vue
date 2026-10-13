@@ -1,129 +1,103 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { CRM_URL, waLink } from '../config';
+import Icon from './Icon.vue';
 
-const CRM_URL = 'https://rocco.arbolaureo.org';
-const annual  = ref(true);
-
-const price    = computed(() => annual.value ? 12 : 15);
-const oldPrice = computed(() => annual.value ? 15 : null);
+const annual = ref(true);
+const price = computed(() => (annual.value ? 12 : 15));
 
 const included = [
-  'Inbox unificado: WhatsApp, Instagram y Facebook',
+  'Inbox unificado: WhatsApp, Instagram y Messenger',
   'Automatizaciones ilimitadas',
-  'Calendario con página de reservas pública',
-  'Gestión de contactos y pipeline de ventas',
+  'Calendario con página de reservas',
+  'Contactos, pipelines y tareas',
   'Sincronización con Google Calendar',
-  'Recordatorios automáticos de citas',
-  'Soporte por WhatsApp',
+  'Hasta 3 usuarios con permisos',
+  'Soporte por WhatsApp en español',
+];
+
+const extras = [
+  'Todo lo del plan Profesional',
+  'Configuración completa por nuestro equipo',
+  'Automatizaciones diseñadas para tu negocio',
+  'Conexión de Meta: Instagram, Messenger y Lead Ads',
+  'Capacitación para tu equipo',
 ];
 </script>
 
 <template>
-  <section id="precio" class="py-20 scroll-mt-16 bg-gray-50">
-    <div class="max-w-4xl mx-auto px-5">
-
-      <!-- Header -->
-      <div class="text-center mb-10">
-        <p class="text-sm font-semibold text-primary uppercase tracking-widest mb-3">Precio</p>
-        <h2 class="text-3xl md:text-4xl font-black text-gray-900">Simple y sin sorpresas</h2>
-        <p class="text-gray-500 mt-3">Un solo plan con todo incluido. Sin contratos anuales obligatorios.</p>
+  <section id="precio" class="py-24 lg:py-32 bg-cream scroll-mt-16">
+    <div class="max-w-6xl mx-auto px-5">
+      <div class="text-center max-w-2xl mx-auto mb-12">
+        <p v-reveal class="eyebrow text-rocco-dark mb-4">Precio</p>
+        <h2 v-reveal="80" class="font-rocco font-extrabold text-4xl md:text-5xl text-ink tracking-tight">Simple y sin sorpresas.</h2>
+        <p v-reveal="140" class="text-ink/60 mt-4 text-lg">Empieza solo con Rocco, o déjanos montarlo contigo.</p>
       </div>
 
-      <!-- Toggle -->
-      <div class="flex items-center justify-center gap-4 mb-10">
-        <span class="text-sm font-semibold" :class="!annual ? 'text-gray-900' : 'text-gray-400'">Mensual</span>
-        <button
-          class="relative w-14 h-7 rounded-full transition-colors duration-300 focus:outline-none"
-          :class="annual ? 'bg-primary' : 'bg-gray-200'"
-          @click="annual = !annual"
-        >
-          <span
-            class="absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-300"
-            :class="annual ? 'translate-x-7' : 'translate-x-0'"
-          />
+      <div v-reveal class="flex items-center justify-center gap-3 mb-12">
+        <span class="text-sm font-semibold" :class="annual ? 'text-ink/40' : 'text-ink'">Mensual</span>
+        <button role="switch" :aria-checked="annual" aria-label="Facturación anual"
+                class="relative w-14 h-7 rounded-full transition-colors duration-300"
+                :class="annual ? 'bg-rocco' : 'bg-ink/20'" @click="annual = !annual">
+          <span class="absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform duration-300"
+                :class="annual ? 'translate-x-7' : ''" />
         </button>
-        <span class="text-sm font-semibold" :class="annual ? 'text-gray-900' : 'text-gray-400'">Anual</span>
-        <Transition
-          enter-active-class="transition-all duration-200"
-          enter-from-class="opacity-0 scale-75"
-          enter-to-class="opacity-100 scale-100"
-          leave-active-class="transition-all duration-150"
-          leave-from-class="opacity-100 scale-100"
-          leave-to-class="opacity-0 scale-75"
-        >
-          <span v-if="annual" class="bg-green-100 text-green-700 text-xs font-bold px-3 py-1 rounded-full">20% OFF</span>
-        </Transition>
+        <span class="text-sm font-semibold" :class="annual ? 'text-ink' : 'text-ink/40'">Anual</span>
+        <span class="text-xs font-bold px-2.5 py-1 rounded-sm bg-emerald-100 text-emerald-700 transition-opacity" :class="annual ? 'opacity-100' : 'opacity-0'">−20%</span>
       </div>
 
-      <!-- Card -->
-      <div class="max-w-md mx-auto">
-        <div class="rounded-3xl overflow-hidden shadow-2xl shadow-gray-200">
+      <div class="grid lg:grid-cols-2 gap-6 items-stretch">
+        <!-- Rocco Profesional -->
+        <article v-reveal class="relative bg-white rounded-md border-2 border-rocco p-8 md:p-10 flex flex-col shadow-[0_30px_60px_-30px_rgba(246,144,8,.45)]">
+          <span class="absolute -top-3 left-8 text-[11px] font-bold uppercase tracking-wider bg-rocco text-white px-3 py-1 rounded-sm">7 días gratis</span>
+          <div class="flex items-center gap-2.5">
+            <img src="/rocco-mark.png" alt="" class="w-6 h-7 object-contain" />
+            <h3 class="font-rocco font-extrabold text-2xl text-ink">Rocco Profesional</h3>
+          </div>
+          <p class="text-ink/55 mt-1">Para negocios que quieren arrancar por su cuenta.</p>
 
-          <!-- Header oscuro -->
-          <div class="bg-gray-900 px-8 pt-8 pb-10 text-center relative">
-            <!-- Badge naranja -->
-            <span class="inline-flex items-center gap-1.5 bg-primary text-white text-xs font-bold px-4 py-1.5 rounded-full mb-6 shadow-lg shadow-primary/40">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/></svg>
-              7 DÍAS GRATIS
-            </span>
+          <div class="mt-8 flex items-end gap-2">
+            <span class="font-rocco font-extrabold text-7xl text-ink leading-none tabular-nums">${{ price }}</span>
+            <span class="text-ink/50 mb-2">/mes</span>
+            <span v-if="annual" class="text-ink/35 line-through mb-2 ml-1">$15</span>
+          </div>
+          <p class="text-sm text-ink/50 mt-2">{{ annual ? 'Facturado $144 al año · ahorras $36' : 'Facturado mes a mes' }}</p>
 
-            <h3 class="text-xl font-black text-white mb-1">Plan Profesional</h3>
-            <p class="text-gray-400 text-sm mb-6">Hasta 3 usuarios · Todo incluido</p>
+          <ul class="mt-8 space-y-3 flex-1">
+            <li v-for="it in included" :key="it" class="flex items-start gap-3 text-ink/80">
+              <Icon name="check" class="w-5 h-5 text-rocco shrink-0 mt-px" :stroke="2.5" /> {{ it }}
+            </li>
+          </ul>
 
-            <!-- Precio -->
-            <div class="flex items-end justify-center gap-1 mb-1">
-              <span class="text-2xl font-bold text-gray-400 mb-2">$</span>
-              <span class="text-8xl font-black leading-none text-white">{{ price }}</span>
-              <div class="mb-2 ml-1 text-left">
-                <div v-if="oldPrice" class="text-gray-500 text-sm line-through">${{ oldPrice }}/mes</div>
-                <div class="text-gray-400 text-sm">/mes</div>
-              </div>
-            </div>
+          <a :href="`${CRM_URL}/login`" class="btn btn-rocco w-full mt-10">Empezar prueba gratis <Icon name="arrowRight" class="w-4 h-4" /></a>
+          <p class="text-center text-xs text-ink/45 mt-3">Sin tarjeta de crédito · Cancela cuando quieras</p>
+        </article>
 
-            <p class="text-gray-400 text-sm">
-              {{ annual ? 'Facturado $144/año' : 'Facturado mes a mes' }}
-            </p>
+        <!-- Con Árbol Áureo -->
+        <article v-reveal="120" class="relative bg-ink text-white rounded-md p-8 md:p-10 flex flex-col overflow-hidden">
+          <div class="absolute -right-20 -top-20 w-72 h-72 rounded-full bg-gold/15 blur-3xl pointer-events-none" />
+          <div class="relative flex items-center gap-2.5">
+            <img src="/arbol-aureo.svg" alt="" class="w-7 h-7 rounded" />
+            <h3 class="font-display text-2xl">Rocco + Árbol Áureo</h3>
+          </div>
+          <p class="relative text-white/55 mt-1">Implementación acompañada, llave en mano.</p>
 
-            <Transition
-              enter-active-class="transition-all duration-300"
-              enter-from-class="opacity-0 scale-90"
-              enter-to-class="opacity-100 scale-100"
-              leave-active-class="transition-all duration-150"
-              leave-from-class="opacity-100 scale-100"
-              leave-to-class="opacity-0 scale-90"
-            >
-              <div v-if="annual" class="mt-3 inline-flex items-center gap-1.5 bg-primary/15 border border-primary/30 text-primary text-xs font-semibold px-3 py-1.5 rounded-full">
-                <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-                Ahorras $36 al año vs plan mensual
-              </div>
-            </Transition>
+          <div class="relative mt-8">
+            <span class="font-display text-5xl md:text-6xl text-gold-grad leading-none">A tu medida</span>
+            <p class="text-sm text-white/50 mt-3">Cotizamos según tus canales, tu equipo y las automatizaciones que necesitas.</p>
           </div>
 
-          <!-- Cuerpo blanco -->
-          <div class="bg-white px-8 py-8">
-            <ul class="space-y-3 mb-8">
-              <li v-for="item in included" :key="item" class="flex items-center gap-3 text-sm text-gray-700">
-                <span class="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                  <span class="text-primary text-[10px] font-black">✓</span>
-                </span>
-                {{ item }}
-              </li>
-            </ul>
+          <ul class="relative mt-8 space-y-3 flex-1">
+            <li v-for="it in extras" :key="it" class="flex items-start gap-3 text-white/80">
+              <Icon name="check" class="w-5 h-5 text-gold shrink-0 mt-px" :stroke="2.5" /> {{ it }}
+            </li>
+          </ul>
 
-            <a
-              :href="`${CRM_URL}/login`"
-              class="block text-center bg-primary hover:bg-primary-dark text-white font-bold py-4 rounded-2xl text-base transition-colors"
-              style="box-shadow: 0 6px 20px rgba(246,144,8,0.30)"
-            >
-              Empezar prueba de 7 días gratis →
-            </a>
-            <p class="text-center text-xs text-gray-400 mt-4">
-              Sin tarjeta de crédito · Cancela cuando quieras
-            </p>
-          </div>
-        </div>
+          <a :href="waLink('Hola Árbol Áureo, quiero cotizar la implementación de Rocco')" target="_blank" rel="noopener"
+             class="relative btn btn-gold w-full mt-10">Solicitar cotización <Icon name="arrowRight" class="w-4 h-4" /></a>
+          <p class="relative text-center text-xs text-white/40 mt-3">Te respondemos por WhatsApp</p>
+        </article>
       </div>
-
     </div>
   </section>
 </template>
