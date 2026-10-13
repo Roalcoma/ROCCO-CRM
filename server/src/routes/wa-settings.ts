@@ -55,8 +55,13 @@ function buildClient(row: Row): EvolutionClient {
 // Crea la instancia de una organización con un nombre propio.
 async function createInstanceRow(orgId: string, displayName: string, isDefault: boolean): Promise<Row> {
   const r = await pool.query<Row>(
-    `INSERT INTO wa_settings (organization_id, evo_url, evo_api_key, instance_name, display_name, is_default)
-     VALUES ($1, '', '', $2, $3, $4) RETURNING *`,
+    `INSERT INTO wa_settings (organization_id, evo_url, evo_api_key, instance_name, display_name, is_default, color)
+     VALUES ($1, '', '', $2, $3, $4,
+       -- color del número: el primero de la paleta que la organización aún no usa
+       COALESCE((SELECT c FROM unnest(ARRAY['#2F5D8A','#5B4B8A','#0F6E6E','#A3246B','#9A4A00','#1E7F4F']) WITH ORDINALITY AS p(c, n)
+                 WHERE c NOT IN (SELECT color FROM wa_settings WHERE organization_id = $1 AND color IS NOT NULL)
+                 ORDER BY n LIMIT 1), '#4A5566'))
+     RETURNING *`,
     [orgId, newInstanceName(orgId), displayName, isDefault],
   );
   return r.rows[0];

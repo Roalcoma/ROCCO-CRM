@@ -20,19 +20,31 @@ type WASetting = {
   instance_name: string;
 };
 
-async function getWACfg(orgId: string): Promise<WASetting | null> {
+// Número por el que se envía: el de la conversación; sin número (chats antiguos), el principal
+async function getWACfg(orgId: string, instanceId?: string | null): Promise<WASetting | null> {
   const res = await pool.query<WASetting>(
-    'SELECT evo_url, evo_api_key, instance_name FROM wa_settings WHERE organization_id = $1 ORDER BY is_default DESC, created_at LIMIT 1',
-    [orgId],
+    `SELECT evo_url, evo_api_key, instance_name FROM wa_settings WHERE organization_id = $1
+     ORDER BY (id = $2::uuid) IS TRUE DESC, is_default DESC, created_at LIMIT 1`,
+    [orgId, instanceId ?? null],
   );
   return res.rows[0] ?? null;
 }
+
+// GET /api/conversations/numbers — números de WhatsApp de la org (para filtros y etiquetas; sin secretos)
+conversationsRouter.get('/numbers', async (req, res) => {
+  const { rows } = await pool.query(
+    `SELECT id, display_name, color, is_default, session_status FROM wa_settings
+     WHERE organization_id = $1 ORDER BY is_default DESC, created_at`,
+    [req.auth!.organizationId],
+  );
+  res.json({ numbers: rows });
+});
 
 // GET /api/conversations — lista con paginación
 conversationsRouter.get('/', async (req, res) => {
   try {
     const orgId = req.auth!.organizationId;
-    const { status = 'open', q, limit = '50', offset = '0', unread, starred, contact_id } = req.query as Record<string, string>;
+    const { status = 'open', q, limit = '50', offset = '0', unread, starred, contact_id, wa_instance_id } = req.query as Record<string, string>;
 
     let where = `WHERE c.organization_id = $1 AND c.wa_chat_id NOT LIKE '%@g.us' AND c.wa_chat_id NOT LIKE '%@newsletter' AND (c.channel IS NULL OR c.channel IN ('whatsapp','instagram_dm','facebook_dm'))`;
     const vals: unknown[] = [orgId];
@@ -45,14 +57,18 @@ conversationsRouter.get('/', async (req, res) => {
     }
     if (unread === 'true') { where += ` AND c.unread_count > 0`; }
     if (contact_id) { where += ` AND c.contact_id = $${i++}`; vals.push(contact_id); }
+    // Filtro por número de WhatsApp (los chats de Instagram/Messenger no tienen número y quedan fuera)
+    if (wa_instance_id && /^[0-9a-f-]{36}$/i.test(wa_instance_id)) { where += ` AND c.wa_instance_id = $${i++}`; vals.push(wa_instance_id); }
     if (q) { where += ` AND (c.display_name ILIKE $${i} OR c.phone ILIKE $${i})`; vals.push(`%${q}%`); i++; }
 
     const result = await pool.query(
       `SELECT c.*,
               ct.id   AS contact_id_linked,
-              ct.first_name || ' ' || COALESCE(ct.last_name, '') AS contact_full_name
+              ct.first_name || ' ' || COALESCE(ct.last_name, '') AS contact_full_name,
+              wa.display_name AS wa_instance_name, wa.color AS wa_instance_color
        FROM conversations c
        LEFT JOIN contacts ct ON ct.id = c.contact_id
+       LEFT JOIN wa_settings wa ON wa.id = c.wa_instance_id
        ${where}
        ORDER BY c.last_message_at DESC NULLS LAST, c.created_at DESC
        LIMIT $${i} OFFSET $${i + 1}`,
@@ -108,13 +124,13 @@ conversationsRouter.post('/:id/messages', async (req, res) => {
     const { id } = req.params;
     const { body, type = 'text', mediaUrl } = req.body as { body?: string; type?: string; mediaUrl?: string };
 
-    const convRes = await pool.query<{ wa_chat_id: string; channel: string; social_account_id: string | null }>(
-      'SELECT wa_chat_id, channel, social_account_id FROM conversations WHERE id = $1 AND organization_id = $2',
+    const convRes = await pool.query<{ wa_chat_id: string; channel: string; social_account_id: string | null; wa_instance_id: string | null }>(
+      'SELECT wa_chat_id, channel, social_account_id, wa_instance_id FROM conversations WHERE id = $1 AND organization_id = $2',
       [id, orgId],
     );
     if (!convRes.rows[0]) return res.status(404).json({ error: 'Conversación no encontrada' });
 
-    const { wa_chat_id: chatId, channel, social_account_id } = convRes.rows[0];
+    const { wa_chat_id: chatId, channel, social_account_id, wa_instance_id } = convRes.rows[0];
 
     let waId: string | null = null;
 
@@ -169,7 +185,7 @@ conversationsRouter.post('/:id/messages', async (req, res) => {
       return res.status(400).json({ error: 'Canal no soportado para enviar mensajes' });
     } else {
       // Enviar vía WhatsApp / Evolution API
-      const cfg = await getWACfg(orgId);
+      const cfg = await getWACfg(orgId, wa_instance_id);
       if (!cfg) return res.status(503).json({ error: 'WhatsApp no configurado' });
 
       const client = evolutionFor(cfg);
@@ -381,7 +397,7 @@ conversationsRouter.get('/:id/contact', async (req, res) => {
 conversationsRouter.post('/', async (req, res) => {
   try {
     const orgId = req.auth!.organizationId;
-    const { phone, display_name, contact_id } = req.body as { phone: string; display_name?: string; contact_id?: string };
+    const { phone, display_name, contact_id, wa_instance_id } = req.body as { phone: string; display_name?: string; contact_id?: string; wa_instance_id?: string };
     if (!(await belongsToOrg('contacts', contact_id, req.auth!.organizationId))) {
       return res.status(400).json({ error: 'El contacto no pertenece a tu cuenta' });
     }
@@ -394,15 +410,23 @@ conversationsRouter.post('/', async (req, res) => {
     if (!waPhone) return res.status(400).json({ error: 'Número de teléfono inválido' });
     const chatId = `${waPhone}@s.whatsapp.net`;
 
-    // Si ya existe, vincular el contacto solo si no tenía uno asignado
+    // Número por el que se abre el chat: el elegido (de esta org) o el principal
+    const inst = await pool.query<{ id: string }>(
+      `SELECT id FROM wa_settings WHERE organization_id = $1
+       ORDER BY (id = $2::uuid) IS TRUE DESC, is_default DESC, created_at LIMIT 1`,
+      [orgId, wa_instance_id && /^[0-9a-f-]{36}$/i.test(wa_instance_id) ? wa_instance_id : null],
+    );
+    if (!inst.rows[0]) return res.status(503).json({ error: 'WhatsApp no configurado' });
+
+    // Si ya existe en ese número, vincular el contacto solo si no tenía uno asignado
     const result = await pool.query<{ id: string }>(
-      `INSERT INTO conversations (organization_id, wa_chat_id, display_name, phone, contact_id)
-       VALUES ($1, $2, $3, $4, $5)
-       ON CONFLICT (organization_id, wa_chat_id) DO UPDATE
+      `INSERT INTO conversations (organization_id, wa_instance_id, wa_chat_id, display_name, phone, contact_id)
+       VALUES ($1, $6, $2, $3, $4, $5)
+       ON CONFLICT (organization_id, wa_instance_id, wa_chat_id) DO UPDATE
          SET updated_at = NOW(),
              contact_id = COALESCE(conversations.contact_id, EXCLUDED.contact_id)
        RETURNING id`,
-      [orgId, chatId, display_name ?? phone, waPhone, contact_id ?? null],
+      [orgId, chatId, display_name ?? phone, waPhone, contact_id ?? null, inst.rows[0].id],
     );
     res.status(201).json({ id: result.rows[0].id });
   } catch (e) {

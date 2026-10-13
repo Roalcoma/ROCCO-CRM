@@ -176,9 +176,11 @@ app.get('/api/media/:msgId', async (req, res) => {
       `SELECT cm.media_url, cm.media_mime, cm.wa_message_id,
               ws.evo_url, ws.evo_api_key, ws.instance_name
        FROM conv_messages cm
+       JOIN conversations c ON c.id = cm.conversation_id
        JOIN wa_settings ws ON ws.organization_id = cm.organization_id
        WHERE cm.id = $1 AND cm.organization_id = $2
-       ORDER BY ws.is_default DESC
+       -- el archivo solo se puede bajar por el número que lo recibió
+       ORDER BY (ws.id = c.wa_instance_id) IS TRUE DESC, ws.is_default DESC
        LIMIT 1`,
       [req.params.msgId, auth.organizationId],
     );

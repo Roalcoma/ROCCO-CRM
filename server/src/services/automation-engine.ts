@@ -219,13 +219,31 @@ export function interpolate(
 
 // ── Obtener cliente WA activo de la org ─────────────────────────────────────
 
-async function getWaClient(orgId: string): Promise<EvolutionClient | null> {
+// Número por el que envía un run: el del chat que lo disparó; si lo disparó otra cosa (cita, etiqueta…),
+// el del último chat de WhatsApp del contacto; sin ninguno, el principal. Si el número que le toca está
+// desconectado no se cambia a otro (devuelve null y el paso se reintenta): el cliente no debe recibir
+// mensajes desde un número distinto al que conoce.
+async function resolveRunInstance(orgId: string, run: { wa_instance_id?: string | null; contact_id: string | null }): Promise<string | null> {
+  if (run.wa_instance_id) return run.wa_instance_id;
+  if (!run.contact_id) return null;
+  const r = await pool.query<{ wa_instance_id: string | null }>(
+    `SELECT wa_instance_id FROM conversations
+     WHERE organization_id = $1 AND contact_id = $2 AND channel = 'whatsapp' AND wa_instance_id IS NOT NULL
+     ORDER BY last_message_at DESC NULLS LAST LIMIT 1`,
+    [orgId, run.contact_id],
+  );
+  return r.rows[0]?.wa_instance_id ?? null;
+}
+
+async function getWaClient(orgId: string, instanceId: string | null): Promise<EvolutionClient | null> {
   const res = await pool.query<{ evo_url: string; evo_api_key: string; instance_name: string }>(
-    `SELECT evo_url, evo_api_key, instance_name
-     FROM wa_settings
-     WHERE organization_id = $1 AND session_status = 'connected'
-     ORDER BY is_default DESC, created_at LIMIT 1`,
-    [orgId],
+    instanceId
+      ? `SELECT evo_url, evo_api_key, instance_name FROM wa_settings
+         WHERE organization_id = $1 AND id = $2 AND session_status = 'connected'`
+      : `SELECT evo_url, evo_api_key, instance_name FROM wa_settings
+         WHERE organization_id = $1 AND session_status = 'connected'
+         ORDER BY is_default DESC, created_at LIMIT 1`,
+    instanceId ? [orgId, instanceId] : [orgId],
   );
   if (!res.rows[0]) return null;
   return evolutionFor(res.rows[0]);
@@ -388,6 +406,7 @@ export async function executeRun(runId: string): Promise<void> {
     status: string;
     current_step: number;
     step_data: StepData;
+    wa_instance_id: string | null;
   }>(
     `SELECT * FROM automation_runs WHERE id = $1`,
     [runId],
@@ -539,7 +558,8 @@ export async function executeRun(runId: string): Promise<void> {
           const message = interpolate(step.message ?? '', contact, stepData);
           // Adjunto opcional (video/imagen del almacén de medios de la org): el mensaje va como caption
           const media = await resolveStepMedia(orgId, step, runId);
-          const client = await getWaClient(orgId);
+          const instanceId = await resolveRunInstance(orgId, run);
+          const client = await getWaClient(orgId, instanceId);
           let outcome: 'sent' | 'no_wa' | 'retry' = 'retry';
           let reason = 'WhatsApp desconectado';
           if (client) {
@@ -600,7 +620,7 @@ export async function executeRun(runId: string): Promise<void> {
             stepData[step.id] = { sent: false, reason: 'sin_whatsapp' };
           } else {
             stepData[step.id] = media ? { sent: true, media_id: media.id } : { sent: true };
-            await logOutboundWa(orgId, phone, message, media);
+            await logOutboundWa(orgId, phone, message, media, instanceId);
           }
           if (retry?.step_id === step.id) delete stepData['__wa_retry__'];
         }
@@ -741,11 +761,13 @@ async function persistRunProgress(
 }
 
 // Registra en la conversación del chat (si existe) el mensaje que envió la automatización
-async function logOutboundWa(orgId: string, phone: string, message: string, media?: StepMedia | null): Promise<void> {
+async function logOutboundWa(orgId: string, phone: string, message: string, media: StepMedia | null | undefined, instanceId: string | null): Promise<void> {
   const chatJid = `${phone}@s.whatsapp.net`;
+  // La conversación de ese número (si el contacto escribió a varios números, cada uno tiene la suya)
   const convRes = await pool.query<{ id: string }>(
-    `SELECT id FROM conversations WHERE organization_id = $1 AND wa_chat_id = $2 LIMIT 1`,
-    [orgId, chatJid],
+    `SELECT id FROM conversations WHERE organization_id = $1 AND wa_chat_id = $2
+     ORDER BY (wa_instance_id = $3::uuid) IS TRUE DESC LIMIT 1`,
+    [orgId, chatJid, instanceId],
   );
   if (!convRes.rows[0]) return;
   const convId = convRes.rows[0].id;
@@ -849,6 +871,7 @@ async function startAutomation(
   ruleId: string,
   contactId: string,
   extraStepData?: Record<string, Record<string, unknown>>,
+  waInstanceId?: string | null,
 ): Promise<void> {
   const contactRes = await pool.query(
     `SELECT * FROM contacts WHERE id = $1 AND organization_id = $2`,
@@ -862,14 +885,15 @@ async function startAutomation(
 
   const runRes = await pool.query<{ id: string }>(
     `INSERT INTO automation_runs
-       (organization_id, automation_id, contact_id, contact_phone, status, current_step, step_data)
+       (organization_id, automation_id, contact_id, contact_phone, status, current_step, step_data, wa_instance_id)
      VALUES ($1, $2, $3, $4, 'running', 0,
        -- cursor al primer paso de la regla tal como está ahora (se reanuda por id, no por índice)
        $5::jsonb || jsonb_build_object('__cursor__', jsonb_build_object(
          'next_step_id', (SELECT config->'steps'->0->>'id' FROM automation_rules WHERE id = $2),
-         'done', COALESCE((SELECT jsonb_array_length(config->'steps') = 0 FROM automation_rules WHERE id = $2), true))))
+         'done', COALESCE((SELECT jsonb_array_length(config->'steps') = 0 FROM automation_rules WHERE id = $2), true))),
+       $6)
      RETURNING id`,
-    [orgId, ruleId, contactId, phone, initialStepData],
+    [orgId, ruleId, contactId, phone, initialStepData, waInstanceId ?? null],
   );
   const runId = runRes.rows[0].id;
 
@@ -910,6 +934,7 @@ export async function fireTagTrigger(
 export async function fireWaNewMessageTrigger(
   orgId: string,
   contactId: string | null,
+  waInstanceId?: string | null,
 ): Promise<void> {
   if (!contactId) return;
   try {
@@ -919,7 +944,7 @@ export async function fireWaNewMessageTrigger(
       [orgId],
     );
     for (const rule of rulesRes.rows) {
-      await startAutomation(orgId, rule.id, contactId);
+      await startAutomation(orgId, rule.id, contactId, undefined, waInstanceId);
     }
   } catch (e) {
     console.error('[automation-engine] fireWaNewMessageTrigger error:', e);
@@ -1115,6 +1140,7 @@ export async function handleIncomingWaMessage(
   orgId: string,
   waChatId: string,
   messageText: string,
+  waInstanceId?: string | null,
 ): Promise<void> {
   try {
     // Extraer el número de teléfono del chatId (ej: "16893183087@s.whatsapp.net")
@@ -1134,12 +1160,13 @@ export async function handleIncomingWaMessage(
          WHERE organization_id = $1
            AND status = 'waiting'
            AND right(crm_phone_digits(contact_phone), 10) = $2
-         ORDER BY waiting_since ASC
+         -- primero el run que espera en el número por el que llegó la respuesta
+         ORDER BY (wa_instance_id = $3::uuid) IS TRUE DESC, waiting_since ASC
          LIMIT 1
          FOR UPDATE SKIP LOCKED
        )
        RETURNING id`,
-      [orgId, phoneKey],
+      [orgId, phoneKey, waInstanceId ?? null],
     );
     const runRow = runRes.rows[0];
     if (!runRow) return;

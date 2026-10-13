@@ -25,7 +25,7 @@ export async function upsertSocialConversation(m: SocialMessage): Promise<void> 
          (organization_id, wa_chat_id, display_name, channel, social_account_id, contact_id,
           last_message_at, last_message_preview, unread_count)
        VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, $8)
-       ON CONFLICT (organization_id, wa_chat_id) DO UPDATE SET
+       ON CONFLICT (organization_id, wa_instance_id, wa_chat_id) DO UPDATE SET
          contact_id           = COALESCE(conversations.contact_id, EXCLUDED.contact_id),
          display_name         = CASE WHEN conversations.display_name IS NULL OR conversations.display_name ~ '^[0-9]+$'
                                      THEN EXCLUDED.display_name ELSE conversations.display_name END,

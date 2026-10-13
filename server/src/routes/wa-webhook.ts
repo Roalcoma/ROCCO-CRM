@@ -72,11 +72,11 @@ waWebhookRouter.post('/:secret', async (req, res) => {
         await tx.query('BEGIN');
         // Crear la conversación (sin contadores todavía) o bloquear la existente sin cambiarla
         const convRes = await tx.query<{ id: string; is_new: boolean }>(
-          `INSERT INTO conversations (organization_id, wa_chat_id, display_name, phone, last_message_at, last_message_preview, unread_count)
-           VALUES ($1, $2, $3, $4, $5, $6, 0)
-           ON CONFLICT (organization_id, wa_chat_id) DO UPDATE SET updated_at = conversations.updated_at
+          `INSERT INTO conversations (organization_id, wa_instance_id, wa_chat_id, display_name, phone, last_message_at, last_message_preview, unread_count)
+           VALUES ($1, $7, $2, $3, $4, $5, $6, 0)
+           ON CONFLICT (organization_id, wa_instance_id, wa_chat_id) DO UPDATE SET updated_at = conversations.updated_at
            RETURNING id, (xmax = 0) AS is_new`,
-          [orgId, chatId, displayName, phone, timestamp, previewText(msgType, body)],
+          [orgId, chatId, displayName, phone, timestamp, previewText(msgType, body), instanceId],
         );
         convId = convRes.rows[0].id;
         isNewConversation = convRes.rows[0].is_new === true;
@@ -146,11 +146,11 @@ waWebhookRouter.post('/:secret', async (req, res) => {
         // Motor de automatizaciones: reanudar un run que espera respuesta de este número. Se espera
         // a que tome el run antes de disparar "nuevo mensaje": así un flujo recién iniciado que llegue a
         // wait_for_reply no se reanuda con este mismo mensaje (nunca lanza: registra sus errores).
-        await handleIncomingWaMessage(orgId, chatId, body ?? '');
+        await handleIncomingWaMessage(orgId, chatId, body ?? '', instanceId);
 
         // Disparar automatizaciones de nuevo mensaje WA
         if (isNewConversation) {
-          fireWaNewMessageTrigger(orgId, contactId).catch(e => console.error('fireWaNewMessageTrigger:', e));
+          fireWaNewMessageTrigger(orgId, contactId, instanceId).catch(e => console.error('fireWaNewMessageTrigger:', e));
         }
       }
 
