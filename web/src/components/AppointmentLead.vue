@@ -170,7 +170,7 @@ async function setStage(stageId: string) {
             <button type="button"
               class="flex w-full cursor-pointer items-center gap-2 rounded-md border bg-white px-2.5 py-1.5 text-left text-sm transition-colors"
               :class="open ? 'border-[#F69008] ring-2 ring-[#F69008]/20' : 'border-slate-300 hover:border-slate-400'">
-              <span class="h-2.5 w-2.5 shrink-0 rounded-full" :style="{ background: oppStage?.color ?? '#94a3b8' }" />
+              <span class="h-2.5 w-2.5 shrink-0 rounded-full" :style="{ background: oppStage?.color ?? '#8FA0B8' }" />
               <span class="truncate font-medium text-slate-800">{{ oppStage?.name ?? 'Sin etapa' }}</span>
               <ChevronDown class="ml-auto h-4 w-4 shrink-0 text-slate-400 transition-transform" :class="open ? 'rotate-180 text-[#F69008]' : ''" />
             </button>
@@ -178,7 +178,7 @@ async function setStage(stageId: string) {
           <div class="max-h-64 overflow-y-auto py-1">
             <button v-for="s in oppPipeline?.stages ?? []" :key="s.id" type="button"
               class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-[13px] transition-colors"
-              :class="s.id === opp.stage_id ? 'bg-[#F69008]/8 font-semibold text-[#9a5a00]' : 'text-slate-700 hover:bg-slate-50'"
+              :class="s.id === opp.stage_id ? 'bg-[#F69008]/8 font-semibold text-[#9A4A00]' : 'text-slate-700 hover:bg-slate-50'"
               @click="setStage(s.id)">
               <span class="h-2.5 w-2.5 shrink-0 rounded-full" :style="{ background: s.color }" />
               <span class="truncate">{{ s.name }}</span>
@@ -195,10 +195,10 @@ async function setStage(stageId: string) {
       <div v-if="suggestion && !creating"
         class="flex items-center gap-2 rounded-md border border-[#F69008]/40 bg-[#F69008]/5 p-2.5">
         <div class="min-w-0 flex-1">
-          <p class="text-[11px] font-medium text-[#9a5a00]">¿Vincular el lead de este contacto?</p>
+          <p class="text-[11px] font-medium text-[#9A4A00]">¿Vincular el lead de este contacto?</p>
           <p class="truncate text-sm font-semibold text-slate-900">{{ suggestion.title }}</p>
           <p class="flex items-center gap-1.5 truncate text-[11px] text-slate-500">
-            <span class="h-2 w-2 shrink-0 rounded-full" :style="{ background: suggestion.stage_color ?? '#94a3b8' }" />
+            <span class="h-2 w-2 shrink-0 rounded-full" :style="{ background: suggestion.stage_color ?? '#8FA0B8' }" />
             <span class="truncate">{{ suggestion.stage_name }} · {{ suggestion.pipeline_name }}</span>
           </p>
         </div>
@@ -230,7 +230,7 @@ async function setStage(stageId: string) {
                 </p>
                 <button type="button" class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left hover:bg-slate-50"
                   @click="link(h.id)">
-                  <span class="h-2.5 w-2.5 shrink-0 rounded-full" :style="{ background: h.stage_color ?? '#94a3b8' }" />
+                  <span class="h-2.5 w-2.5 shrink-0 rounded-full" :style="{ background: h.stage_color ?? '#8FA0B8' }" />
                   <span class="min-w-0 flex-1">
                     <span class="block truncate text-[13px] font-medium text-slate-800">{{ h.title }}</span>
                     <span class="block truncate text-[11px] text-slate-400">{{ h.pipeline_name }} · {{ h.stage_name }}<template v-if="h.contact_first_name"> · {{ [h.contact_first_name, h.contact_last_name].filter(Boolean).join(' ') }}</template></span>
@@ -242,7 +242,7 @@ async function setStage(stageId: string) {
           </div>
         </Dropdown>
         <button type="button" :disabled="!stageOptions.length"
-          class="flex cursor-pointer items-center justify-center gap-1.5 rounded-md border border-dashed border-[#F69008]/60 bg-white px-3 py-2 text-sm font-medium text-[#9a5a00] hover:bg-[#F69008]/5 disabled:opacity-50"
+          class="flex cursor-pointer items-center justify-center gap-1.5 rounded-md border border-dashed border-[#F69008]/60 bg-white px-3 py-2 text-sm font-medium text-[#9A4A00] hover:bg-[#F69008]/5 disabled:opacity-50"
           @click="startCreate">
           <Plus class="h-3.5 w-3.5" /> Crear nueva
         </button>

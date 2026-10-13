@@ -1167,9 +1167,9 @@ async function syncNames() {
                       <ChevronRight class="h-3 w-3 flex-shrink-0 opacity-50" />
                       <!-- Dot + nombre del stage, texto siempre legible -->
                       <span class="flex-shrink-0 flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold text-slate-600"
-                        :style="o.stage_color ? { background: o.stage_color + '20' } : { background: '#f1f5f9' }">
+                        :style="o.stage_color ? { background: o.stage_color + '20' } : { background: '#EEF1F5' }">
                         <span class="h-1.5 w-1.5 rounded-full flex-shrink-0"
-                          :style="{ background: o.stage_color || '#94a3b8' }" />
+                          :style="{ background: o.stage_color || '#8FA0B8' }" />
                         {{ o.stage_name }}
                       </span>
                     </div>
@@ -1217,7 +1217,7 @@ async function syncNames() {
                         :class="stage.id === o.stage_id ? 'font-semibold text-primary' : 'text-slate-700'"
                         @click="moveOppStage(o, stage)">
                         <span class="h-2 w-2 rounded-full flex-shrink-0"
-                          :style="stage.color ? { background: stage.color } : { background: '#94a3b8' }" />
+                          :style="stage.color ? { background: stage.color } : { background: '#8FA0B8' }" />
                         {{ stage.name }}
                       </button>
                     </template>
@@ -1465,8 +1465,8 @@ async function syncNames() {
 /* Scrollbars personalizados — cuadrados, sin flechas */
 ::-webkit-scrollbar               { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track         { background: transparent; }
-::-webkit-scrollbar-thumb         { background: #cbd5e1; border-radius: 2px; }
-::-webkit-scrollbar-thumb:hover   { background: #94a3b8; }
+::-webkit-scrollbar-thumb         { background: #CBD1DA; border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover   { background: #8FA0B8; }
 ::-webkit-scrollbar-button        { display: none; }
-* { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
+* { scrollbar-width: thin; scrollbar-color: #CBD1DA transparent; }
 </style>

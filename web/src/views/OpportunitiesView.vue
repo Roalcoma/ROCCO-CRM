@@ -760,7 +760,7 @@ async function deleteNote(id: string) {
                       class="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border transition-colors"
                       :style="qf.stageIds.includes(stage.id)
                         ? { background: stage.color, borderColor: stage.color }
-                        : { borderColor: '#CBD5E1', background: 'white' }"
+                        : { borderColor: '#CBD1DA', background: 'white' }"
                       @click.prevent="toggleQfStage(stage.id)"
                     >
                       <Check v-if="qf.stageIds.includes(stage.id)" class="h-2.5 w-2.5 text-white" />
@@ -934,7 +934,7 @@ async function deleteNote(id: string) {
                 <p v-if="opp.business_name" class="text-xs text-slate-400 mt-0.5">{{ opp.business_name }}</p>
               </td>
               <td class="px-3 py-3">
-                <span class="rounded-full px-2.5 py-0.5 text-xs font-medium text-slate-700" :style="{ backgroundColor: (stageById[opp.stage_id]?.color ?? '#e2e8f0') + '33', color: stageById[opp.stage_id]?.color ?? '#475569' }">
+                <span class="rounded-full px-2.5 py-0.5 text-xs font-medium text-slate-700" :style="{ backgroundColor: (stageById[opp.stage_id]?.color ?? '#E4E7EC') + '33', color: stageById[opp.stage_id]?.color ?? '#4A5566' }">
                   {{ stageById[opp.stage_id]?.name ?? '—' }}
                 </span>
               </td>
@@ -1214,9 +1214,9 @@ async function deleteNote(id: string) {
 
 /* ── Quick-filter chip ───────────────────────────────────────────────────── */
 .qf-chip {
-  cursor: pointer; border-radius: 999px; border: 1.5px solid #E2E8F0;
+  cursor: pointer; border-radius: 999px; border: 1.5px solid #E4E7EC;
   padding: 4px 14px; font-size: 12px; font-weight: 500;
-  color: #64748B; background: white;
+  color: #5E6878; background: white;
   transition: border-color 0.15s, background 0.15s, color 0.15s;
 }
 .qf-chip:hover { border-color: #F69008; color: #F69008; }
@@ -1224,19 +1224,19 @@ async function deleteNote(id: string) {
 
 /* ── Quick-filter input ─────────────────────────────────────────────────── */
 .qf-input {
-  border-radius: 8px; border: 1.5px solid #E2E8F0;
+  border-radius: 8px; border: 1.5px solid #E4E7EC;
   padding: 6px 10px; font-size: 13px; color: #1E293B;
   background: white; transition: border-color 0.15s, box-shadow 0.15s; outline: none;
 }
 .qf-input:focus { border-color: #F69008; box-shadow: 0 0 0 3px rgba(246,144,8,0.15); }
-.qf-input::placeholder { color: #94A3B8; }
+.qf-input::placeholder { color: #8FA0B8; }
 
 /* ── "Cargar más" de una columna / de la lista ─────────────────────────── */
 .kanban-load-more {
   display: flex; align-items: center; justify-content: center; gap: 0.375rem;
   width: 100%; margin-top: 0.625rem; padding: 0.5rem 0.75rem; border-radius: 0.375rem;
-  border: 1px solid #E2E8F0; background: white;
-  font-size: 0.75rem; font-weight: 600; color: #475569; cursor: pointer;
+  border: 1px solid #E4E7EC; background: white;
+  font-size: 0.75rem; font-weight: 600; color: #4A5566; cursor: pointer;
   transition: border-color 0.15s, color 0.15s, background 0.15s;
 }
 .kanban-load-more:hover:not(:disabled) { border-color: #F69008; color: #D97706; background: rgba(246,144,8,0.05); }

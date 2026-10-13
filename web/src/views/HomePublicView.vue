@@ -157,11 +157,11 @@ const icons = [KanbanSquare, MessageCircle, Calendar, Zap];
 .wordmark { font-family: var(--font-display); font-size: 1.5rem; font-weight: 800; letter-spacing: -0.03em; color: #fff; }
 .dot { color: #F69008; }
 .nav { display: flex; align-items: center; gap: 18px; }
-.nav-link { font-size: 0.875rem; color: #cbd5e1; }
+.nav-link { font-size: 0.875rem; color: #CBD1DA; }
 .nav-link:hover { color: #fff; }
 
 .langs { display: flex; border: 1px solid #ffffff33; border-radius: 6px; overflow: hidden; }
-.langs button { padding: 4px 9px; font-size: 0.75rem; font-weight: 700; color: #94a3b8; cursor: pointer; transition: background .15s, color .15s; }
+.langs button { padding: 4px 9px; font-size: 0.75rem; font-weight: 700; color: #8FA0B8; cursor: pointer; transition: background .15s, color .15s; }
 .langs button:hover { color: #fff; }
 .langs button.on { background: #ffffff1f; color: #fff; }
 
@@ -175,7 +175,7 @@ const icons = [KanbanSquare, MessageCircle, Calendar, Zap];
 .hero { padding: 72px 0 56px; }
 .hero h1 { font-family: var(--font-display); font-size: clamp(2rem, 5vw, 3.1rem); line-height: 1.08; font-weight: 800;
   letter-spacing: -0.03em; max-width: 760px; }
-.lead { margin-top: 18px; font-size: 1.1rem; line-height: 1.6; color: #334155; max-width: 640px; }
+.lead { margin-top: 18px; font-size: 1.1rem; line-height: 1.6; color: #2A3A52; max-width: 640px; }
 .actions { margin-top: 28px; display: flex; flex-wrap: wrap; gap: 12px; }
 
 .features { padding: 48px 0; background: #fff; border-top: 1px solid #e7e2d9; border-bottom: 1px solid #e7e2d9; }
@@ -184,17 +184,17 @@ const icons = [KanbanSquare, MessageCircle, Calendar, Zap];
 .feature-list li { display: flex; gap: 14px; }
 .feature-icon { width: 22px; height: 22px; color: #F69008; flex-shrink: 0; margin-top: 3px; }
 .feature-list h3 { font-weight: 700; font-size: 1.02rem; }
-.feature-list p { margin-top: 4px; color: #475569; line-height: 1.55; font-size: 0.95rem; }
+.feature-list p { margin-top: 4px; color: #4A5566; line-height: 1.55; font-size: 0.95rem; }
 
 .google { padding: 52px 0 64px; }
 .google-inner { display: flex; gap: 18px; }
 .google-icon { width: 28px; height: 28px; color: #13243D; flex-shrink: 0; margin-top: 4px; }
-.google p { margin-top: 12px; line-height: 1.6; color: #334155; max-width: 760px; }
-.google ul { margin-top: 10px; padding-left: 1.1rem; list-style: disc; color: #334155; line-height: 1.6; max-width: 760px; }
+.google p { margin-top: 12px; line-height: 1.6; color: #2A3A52; max-width: 760px; }
+.google ul { margin-top: 10px; padding-left: 1.1rem; list-style: disc; color: #2A3A52; line-height: 1.6; max-width: 760px; }
 .google li { margin-top: 4px; }
 .link { color: #b86a00; text-decoration: underline; }
 
-.foot { margin-top: auto; background: #13243D; color: #94a3b8; font-size: 0.85rem; }
+.foot { margin-top: auto; background: #13243D; color: #8FA0B8; font-size: 0.85rem; }
 .foot-inner { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; padding-top: 18px; padding-bottom: 18px; }
 .foot-links { display: flex; flex-wrap: wrap; gap: 16px; }
 .foot a:hover { color: #fff; }

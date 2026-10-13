@@ -50,8 +50,8 @@ const pwd = ref({
 
 // ── Avatar ────────────────────────────────────────────────────────────────────
 const COLORS = [
-  '#F69008', '#60D0FA', '#10B981', '#8B5CF6',
-  '#EF4444', '#F59E0B', '#3B82F6', '#EC4899', '#6366F1',
+  '#F69008', '#60D0FA', '#1E7F4F', '#5B4B8A',
+  '#B42318', '#9A4A00', '#2F5D8A', '#A3246B', '#4A5566',
 ];
 
 const initials = computed(() => {
@@ -539,14 +539,14 @@ async function disconnectZoom() {
 .toast-enter-from, .toast-leave-to { opacity: 0; transform: translateY(8px); }
 .uf-label {
   display: block; margin-bottom: 6px;
-  font-size: 13px; font-weight: 500; color: #475569;
+  font-size: 13px; font-weight: 500; color: #4A5566;
 }
 .uf-input {
-  width: 100%; border-radius: 8px; border: 1.5px solid #E2E8F0;
-  padding: 8px 12px; font-size: 13px; color: #0F172A;
-  background: #F8FAFC; outline: none;
+  width: 100%; border-radius: 8px; border: 1.5px solid #E4E7EC;
+  padding: 8px 12px; font-size: 13px; color: #13243D;
+  background: #F7F8FA; outline: none;
   transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
 }
 .uf-input:focus { border-color: #F69008; background: #fff; box-shadow: 0 0 0 3px rgba(246,144,8,0.12); }
-.uf-input::placeholder { color: #94A3B8; }
+.uf-input::placeholder { color: #8FA0B8; }
 </style>

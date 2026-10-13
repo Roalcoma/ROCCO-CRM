@@ -255,7 +255,7 @@ const initials = () => {
   margin-bottom: 6px;
   font-size: 13px;
   font-weight: 500;
-  color: #475569;
+  color: #4A5566;
 }
 
 
@@ -271,7 +271,7 @@ const initials = () => {
   transform: translateY(-50%);
   width: 15px;
   height: 15px;
-  color: #94A3B8;
+  color: #8FA0B8;
   pointer-events: none;
   flex-shrink: 0;
 }

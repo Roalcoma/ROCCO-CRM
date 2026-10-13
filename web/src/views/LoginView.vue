@@ -261,14 +261,14 @@ async function submit() {
   font-size: 2.4rem;
   font-weight: 800;
   line-height: 1.15;
-  color: #f1f5f9;
+  color: #EEF1F5;
   letter-spacing: -0.02em;
   margin-bottom: 0.875rem;
 }
 
 .brand-sub {
   font-size: 0.9rem;
-  color: #64748b;
+  color: #5E6878;
   line-height: 1.6;
   max-width: 300px;
   margin-bottom: 2.5rem;
@@ -287,7 +287,7 @@ async function submit() {
   align-items: center;
   gap: 0.625rem;
   font-size: 0.8125rem;
-  color: #94a3b8;
+  color: #8FA0B8;
 }
 .feat-icon {
   display: flex;
@@ -305,7 +305,7 @@ async function submit() {
   position: relative;
   z-index: 1;
   font-size: 0.7rem;
-  color: #334155;
+  color: #2A3A52;
   margin-top: 2rem;
 }
 
@@ -327,13 +327,13 @@ async function submit() {
 .form-title {
   font-size: 1.625rem;
   font-weight: 700;
-  color: #0f172a;
+  color: #13243D;
   letter-spacing: -0.02em;
   margin-bottom: 0.375rem;
 }
 .form-sub {
   font-size: 0.875rem;
-  color: #64748b;
+  color: #5E6878;
 }
 
 /* ── Campos ── */
@@ -367,7 +367,7 @@ async function submit() {
   background: #fafafa;
   padding: 0.625rem 0.875rem 0.625rem 2.375rem;
   font-size: 0.875rem;
-  color: #111827;
+  color: #13243D;
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
 }

@@ -35,7 +35,7 @@ const LOCATION_TYPES = [
 ];
 
 const DAYS = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
-const COLORS = ['#F69008','#60D0FA','#10B981','#8B5CF6','#EF4444','#F59E0B','#3B82F6','#EC4899','#6366F1'];
+const COLORS = ['#F69008','#60D0FA','#1E7F4F','#5B4B8A','#B42318','#9A4A00','#2F5D8A','#A3246B','#4A5566'];
 
 const DURATIONS = [
   { value: 15,  label: '15 min' },
@@ -173,7 +173,7 @@ function setPrimary(userId: string) {
 function onMemberBlur() { setTimeout(() => { showMemberDrop.value = false; }, 200); }
 
 function avatarColor(name: string): string {
-  const colors = ['#F69008','#10B981','#8B5CF6','#3B82F6','#EC4899','#EF4444','#F59E0B'];
+  const colors = ['#F69008','#1E7F4F','#5B4B8A','#2F5D8A','#A3246B','#B42318','#9A4A00'];
   let hash = 0;
   for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
   return colors[Math.abs(hash) % colors.length];
@@ -1001,27 +1001,27 @@ async function confirmDelete() {
 </template>
 
 <style>
-.ce-label    { display: block; font-size: 13px; font-weight: 500; color: #475569; margin-bottom: 5px; }
-.ce-label-sm { display: block; font-size: 11px; font-weight: 500; color: #64748b; margin-bottom: 4px; }
+.ce-label    { display: block; font-size: 13px; font-weight: 500; color: #4A5566; margin-bottom: 5px; }
+.ce-label-sm { display: block; font-size: 11px; font-weight: 500; color: #5E6878; margin-bottom: 4px; }
 .ce-input {
-  width: 100%; border-radius: 8px; border: 1.5px solid #E2E8F0;
-  padding: 8px 12px; font-size: 13px; color: #0F172A;
+  width: 100%; border-radius: 8px; border: 1.5px solid #E4E7EC;
+  padding: 8px 12px; font-size: 13px; color: #13243D;
   background: #fff; outline: none; font-family: inherit;
   transition: border-color 0.15s, box-shadow 0.15s;
   display: flex; align-items: center; text-align: left; cursor: pointer;
 }
 .ce-input:focus { border-color: #F69008; box-shadow: 0 0 0 3px rgba(246,144,8,0.12); }
-.ce-input::placeholder { color: #94A3B8; }
+.ce-input::placeholder { color: #8FA0B8; }
 
 /* Botón-trigger para los dropdowns pequeños */
 .ce-drop-sm {
-  width: 100%; border-radius: 6px; border: 1.5px solid #E2E8F0;
-  padding: 6px 8px; font-size: 12px; color: #0F172A;
+  width: 100%; border-radius: 6px; border: 1.5px solid #E4E7EC;
+  padding: 6px 8px; font-size: 12px; color: #13243D;
   background: #fff; outline: none; font-family: inherit;
   transition: border-color 0.15s, box-shadow 0.15s;
   display: flex; align-items: center; justify-content: space-between; cursor: pointer;
 }
-.ce-drop-sm:hover { border-color: #CBD5E1; }
+.ce-drop-sm:hover { border-color: #CBD1DA; }
 
 /* Animación del dropdown */
 .ce-drop-enter-active, .ce-drop-leave-active {

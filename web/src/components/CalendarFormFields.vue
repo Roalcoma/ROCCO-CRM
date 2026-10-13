@@ -4,7 +4,7 @@ import { TIMEZONES } from '../utils/timezones';
 import BizSelect from './BizSelect.vue';
 
 const DAYS   = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-const COLORS = ['#F69008','#60D0FA','#10B981','#8B5CF6','#EF4444','#F59E0B','#3B82F6','#EC4899','#6366F1'];
+const COLORS = ['#F69008','#60D0FA','#1E7F4F','#5B4B8A','#B42318','#9A4A00','#2F5D8A','#A3246B','#4A5566'];
 
 interface FormData {
   name: string; color: string; slug: string; timezone: string;
@@ -160,19 +160,19 @@ const emit  = defineEmits<{ autoSlug: [] }>();
 </template>
 
 <style>
-.cf-label    { display: block; font-size: 13px; font-weight: 500; color: #475569; margin-bottom: 5px; }
-.cf-label-sm { display: block; font-size: 11px; font-weight: 500; color: #64748b; margin-bottom: 4px; }
+.cf-label    { display: block; font-size: 13px; font-weight: 500; color: #4A5566; margin-bottom: 5px; }
+.cf-label-sm { display: block; font-size: 11px; font-weight: 500; color: #5E6878; margin-bottom: 4px; }
 .cf-input {
-  width: 100%; border-radius: 8px; border: 1.5px solid #E2E8F0;
-  padding: 8px 12px; font-size: 13px; color: #0F172A;
+  width: 100%; border-radius: 8px; border: 1.5px solid #E4E7EC;
+  padding: 8px 12px; font-size: 13px; color: #13243D;
   background: #fff; outline: none; font-family: inherit;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .cf-input:focus { border-color: #F69008; box-shadow: 0 0 0 3px rgba(246,144,8,0.12); }
-.cf-input::placeholder { color: #94A3B8; }
+.cf-input::placeholder { color: #8FA0B8; }
 .cf-input-sm {
-  width: 100%; border-radius: 6px; border: 1.5px solid #E2E8F0;
-  padding: 6px 8px; font-size: 12px; color: #0F172A;
+  width: 100%; border-radius: 6px; border: 1.5px solid #E4E7EC;
+  padding: 6px 8px; font-size: 12px; color: #13243D;
   background: #fff; outline: none; font-family: inherit;
   transition: border-color 0.15s;
 }

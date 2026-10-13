@@ -32,7 +32,7 @@ const otherUsers    = computed(() => orgUsers.value.filter(u => u.id !== auth.us
 function userInitials(name: string) {
   return name.split(' ').slice(0, 2).map(w => w[0] ?? '').join('').toUpperCase() || '?';
 }
-const AVATAR_COLORS = ['#F69008','#10B981','#8B5CF6','#3B82F6','#EC4899','#EF4444','#6366F1'];
+const AVATAR_COLORS = ['#F69008','#1E7F4F','#5B4B8A','#2F5D8A','#A3246B','#B42318','#4A5566'];
 function userAvatarColor(name: string) {
   let h = 0;
   for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);

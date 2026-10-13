@@ -222,8 +222,8 @@ function fmtTime(iso: string): string {
 
 function apptChipStyle(a: Appointment) {
   const c = calColor(a.calendar_id);
-  if (a.status === 'blocked')   return { bg: '#f1f5f9', dot: '#94a3b8', text: '#64748b', outline: false };
-  if (a.status === 'completed') return { bg: '#10b981', dot: '#10b981', text: '#ffffff', outline: false };
+  if (a.status === 'blocked')   return { bg: '#EEF1F5', dot: '#8FA0B8', text: '#5E6878', outline: false };
+  if (a.status === 'completed') return { bg: '#1E7F4F', dot: '#1E7F4F', text: '#ffffff', outline: false };
   if (a.status === 'cancelled' || a.status === 'no_show')
     return { bg: '#ffffff',   dot: c,         text: c,         outline: true };
   return                               { bg: c,         dot: c,         text: '#ffffff',  outline: false };
@@ -231,14 +231,14 @@ function apptChipStyle(a: Appointment) {
 
 function weekBlockStyle(a: Appointment): string {
   if (a.status !== 'blocked') return '';
-  return 'repeating-linear-gradient(135deg,#f1f5f9 0px,#f1f5f9 6px,#e2e8f0 6px,#e2e8f0 12px)';
+  return 'repeating-linear-gradient(135deg,#EEF1F5 0px,#EEF1F5 6px,#E4E7EC 6px,#E4E7EC 12px)';
 }
 
 function taskChipStyle(t: { status: string; priority: string }) {
-  if (t.status === 'done')      return { bg: '#d1fae5', dot: '#10b981', text: '#065f46' };
-  if (t.status === 'cancelled') return { bg: '#f1f5f9', dot: '#94a3b8', text: '#94a3b8' };
-  if (t.priority === 'high')    return { bg: '#fee2e2', dot: '#ef4444', text: '#991b1b' };
-  return { bg: '#ede9fe', dot: '#8b5cf6', text: '#5b21b6' };
+  if (t.status === 'done')      return { bg: '#d1fae5', dot: '#1E7F4F', text: '#065f46' };
+  if (t.status === 'cancelled') return { bg: '#EEF1F5', dot: '#8FA0B8', text: '#8FA0B8' };
+  if (t.priority === 'high')    return { bg: '#FDECEA', dot: '#B42318', text: '#991b1b' };
+  return { bg: '#ede9fe', dot: '#5B4B8A', text: '#5b21b6' };
 }
 
 // ─── Week view ────────────────────────────────────────────────────────────────
@@ -539,7 +539,7 @@ function goToWeekDay(year: number, month: number, day: number) {
             <!-- Punto de estado de visibilidad -->
             <span
               class="absolute bottom-0.5 right-0.5 h-1.5 w-1.5 rounded-full border border-white"
-              :style="`background: ${visibleCalIds.has(cal.id) ? cal.color : '#cbd5e1'}`"
+              :style="`background: ${visibleCalIds.has(cal.id) ? cal.color : '#CBD1DA'}`"
             ></span>
           </div>
 
@@ -938,7 +938,7 @@ function goToWeekDay(year: number, month: number, day: number) {
                     :class="a.status === 'cancelled' || a.status === 'no_show' ? 'line-through' : ''"
                     :style="`color:${apptChipStyle(a).text}`"
                   >{{ fmtTime(a.start_at) }}</span>
-                  <span v-else class="block text-[9px] opacity-50 mt-0.5" style="color:#64748b">
+                  <span v-else class="block text-[9px] opacity-50 mt-0.5" style="color:#5E6878">
                     {{ fmtTime(a.start_at) }} – {{ fmtTime(a.end_at) }}
                   </span>
                 </div>

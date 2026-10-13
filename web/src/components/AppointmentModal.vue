@@ -624,7 +624,7 @@ function close() { emit('update:modelValue', false); }
                   type="button"
                   class="flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-all cursor-pointer"
                   :class="form.provider === 'manual'
-                    ? 'border-[#F69008] bg-[#F69008]/8 text-[#9a5a00]'
+                    ? 'border-[#F69008] bg-[#F69008]/8 text-[#9A4A00]'
                     : 'border-slate-200 text-slate-600 hover:border-slate-300'"
                   @click="form.provider = 'manual'"
                 >

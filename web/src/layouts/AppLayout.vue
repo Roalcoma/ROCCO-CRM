@@ -340,7 +340,7 @@ const s = computed(() => isDark.value
       <button
         v-if="!isMobile"
         class="floating-toggle absolute right-0 z-20 flex cursor-pointer items-center justify-center rounded-full bg-[#F69008] text-white shadow-lg shadow-[#F69008]/30 ring-2 transition-all hover:bg-[#D97706] hover:shadow-[#D97706]/40 active:scale-95"
-        :class="isDark ? 'ring-[#111827]' : 'ring-white'"
+        :class="isDark ? 'ring-[#13243D]' : 'ring-white'"
         style="top: 86%; transform: translate(50%, -50%)"
         @click="toggleSidebar"
         :title="collapsed ? 'Expandir panel' : 'Contraer panel'"

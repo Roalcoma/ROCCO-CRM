@@ -18,7 +18,7 @@ const auth = useAuthStore();
 const pipelines = ref<Pipeline[]>([]);
 const loading = ref(true);
 const q = ref('');
-const PRESET = ['#dbeafe', '#dcfce7', '#fef9c3', '#ffedd5', '#fee2e2', '#fce7f3', '#f3e8ff', '#e0e7ff', '#e2e8f0'];
+const PRESET = ['#dbeafe', '#dcfce7', '#fef9c3', '#ffedd5', '#FDECEA', '#fce7f3', '#f3e8ff', '#e0e7ff', '#E4E7EC'];
 
 const filtered = computed(() => {
   const term = q.value.trim().toLowerCase();

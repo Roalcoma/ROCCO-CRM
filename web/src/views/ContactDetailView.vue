@@ -84,8 +84,8 @@ function fullName(c: Contact) {
 }
 
 const avatarPalette = [
-  '#F69008','#3B82F6','#8B5CF6','#10B981',
-  '#EF4444','#06B6D4','#F59E0B','#6366F1',
+  '#F69008','#2F5D8A','#5B4B8A','#1E7F4F',
+  '#B42318','#0F6E6E','#9A4A00','#4A5566',
 ];
 
 function avatarBg(c: Contact) {
@@ -196,7 +196,7 @@ const taskPriorityLabel: Record<string, string> = { high: 'Alta', medium: 'Media
 const taskStatusClass: Record<string, string> = { pending: 'bg-slate-100 text-slate-600', in_progress: 'bg-amber-100 text-amber-700', done: 'bg-emerald-100 text-emerald-700' };
 const taskStatusLabel: Record<string, string> = { pending: 'Pendiente', in_progress: 'En progreso', done: 'Hecho' };
 
-const apptStatusClass: Record<string, string> = { scheduled: 'bg-[#F69008]/15 text-[#9a5a00]', completed: 'bg-emerald-100 text-emerald-700', cancelled: 'bg-slate-100 text-slate-400', no_show: 'bg-slate-100 text-slate-400' };
+const apptStatusClass: Record<string, string> = { scheduled: 'bg-[#F69008]/15 text-[#9A4A00]', completed: 'bg-emerald-100 text-emerald-700', cancelled: 'bg-slate-100 text-slate-400', no_show: 'bg-slate-100 text-slate-400' };
 const apptStatusLabel: Record<string, string> = { scheduled: 'Programada', completed: 'Completada', cancelled: 'Cancelada', no_show: 'No asistió' };
 
 const statusBadge: Record<string, string> = { active: 'bg-emerald-100 text-emerald-700', inactive: 'bg-slate-100 text-slate-500', blocked: 'bg-red-100 text-red-600' };

@@ -163,7 +163,7 @@ onMounted(load);
           type="button"
           class="w-full rounded-xl border px-4 py-3 text-sm font-medium transition-all cursor-pointer text-left"
           :class="selSlot === s
-            ? 'border-[#F69008] bg-[#F69008]/8 text-[#9a5a00]'
+            ? 'border-[#F69008] bg-[#F69008]/8 text-[#9A4A00]'
             : 'border-slate-200 text-slate-700 hover:border-[#F69008]/50 hover:bg-slate-50'"
           @click="selSlot = s"
         >
@@ -210,7 +210,7 @@ onMounted(load);
 
       <div class="flex flex-col gap-2">
         <button
-          class="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:border-[#F69008]/60 hover:bg-[#F69008]/5 hover:text-[#9a5a00] transition-all cursor-pointer"
+          class="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:border-[#F69008]/60 hover:bg-[#F69008]/5 hover:text-[#9A4A00] transition-all cursor-pointer"
           @click="startReschedule"
         >
           <RefreshCw class="h-4 w-4" />

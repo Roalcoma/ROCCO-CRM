@@ -31,7 +31,7 @@ async function submit() {
 <template>
   <div class="flex min-h-screen bg-white">
     <!-- Left panel: branding -->
-    <div class="hidden lg:flex lg:w-1/2 flex-col items-center justify-center bg-gradient-to-br from-[#111827] via-[#1c2333] to-[#111827] p-12 relative overflow-hidden">
+    <div class="hidden lg:flex lg:w-1/2 flex-col items-center justify-center bg-gradient-to-br from-[#13243D] via-[#1c2333] to-[#13243D] p-12 relative overflow-hidden">
       <!-- Decorative blobs -->
       <div class="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-[#F69008]/10 blur-3xl"></div>
       <div class="absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-[#D97706]/10 blur-3xl"></div>

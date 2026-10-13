@@ -234,8 +234,8 @@ function initials(c: Contact) {
 }
 
 const avatarPalette = [
-  '#F69008', '#3B82F6', '#8B5CF6', '#10B981',
-  '#EF4444', '#06B6D4', '#F59E0B', '#6366F1',
+  '#F69008', '#2F5D8A', '#5B4B8A', '#1E7F4F',
+  '#B42318', '#0F6E6E', '#9A4A00', '#4A5566',
 ];
 
 function avatarBg(c: Contact) {
