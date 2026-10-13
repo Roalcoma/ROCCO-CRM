@@ -7,11 +7,18 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { pool } from '../db.ts';
 import { requireAdmin } from '../auth/perms.ts';
+import { accessOf, canUseNumber } from '../access.ts';
 import { EvolutionClient, evolutionFor, newInstanceName } from '../services/evolution.ts';
 import { env } from '../env.ts';
 import { broadcast } from '../services/ws-manager.ts';
 
 export const waSettingsRouter = Router();
+
+// Acceso por número (access.ts): un usuario limitado solo ve y gestiona sus números
+waSettingsRouter.param('id', (req, res, next, id: string) => {
+  if (!canUseNumber(accessOf(req), id)) return res.status(404).json({ error: 'Instancia no encontrada' });
+  next();
+});
 
 type Row = {
   id: string;
@@ -95,7 +102,8 @@ waSettingsRouter.get('/instances', requireAdmin, async (req, res) => {
     const used = await pool.query(
       `SELECT 1 FROM conversations WHERE organization_id = $1 AND channel = 'whatsapp' LIMIT 1`, [orgId],
     );
-    res.json({ instances: rows.rows.map(safeInstance), in_use: (used.rowCount ?? 0) > 0 });
+    const access = accessOf(req);
+    res.json({ instances: rows.rows.filter(r => canUseNumber(access, r.id)).map(safeInstance), in_use: (used.rowCount ?? 0) > 0 });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: 'Error al cargar instancias' });
@@ -104,6 +112,7 @@ waSettingsRouter.get('/instances', requireAdmin, async (req, res) => {
 
 // POST /wa/instances — crear nueva instancia (máx 2)
 waSettingsRouter.post('/instances', requireAdmin, async (req, res) => {
+  if (accessOf(req).wa !== null) return res.status(403).json({ error: 'Tu acceso está limitado a ciertos números; pide a un administrador que añada el número' });
   try {
     const orgId = req.auth!.organizationId;
     const countRes = await pool.query<{ c: string }>(
@@ -162,12 +171,23 @@ waSettingsRouter.patch('/instances/:id', requireAdmin, async (req, res) => {
     if (!parsed.success) return res.status(400).json({ error: 'Solo se puede cambiar el nombre (de 1 a 40 caracteres)' });
     const id = String(req.params.id);
     if (!z.string().uuid().safeParse(id).success) return res.status(404).json({ error: 'Instancia no encontrada' });
+    const old = await pool.query<{ display_name: string }>(
+      'SELECT display_name FROM wa_settings WHERE id = $1 AND organization_id = $2', [id, req.auth!.organizationId]);
     const r = await pool.query<Row>(
       `UPDATE wa_settings SET display_name = $1, updated_at = NOW()
        WHERE id = $2 AND organization_id = $3 RETURNING *`,
       [parsed.data.display_name, id, req.auth!.organizationId],
     );
     if (!r.rows[0]) return res.status(404).json({ error: 'Instancia no encontrada' });
+    // La etiqueta de origen de los contactos (wa-webhook.ts) sigue al nombre del número
+    const oldName = old.rows[0]?.display_name;
+    if (oldName && oldName !== parsed.data.display_name) {
+      await pool.query(
+        `UPDATE contacts SET tags = array_replace(tags, $1, $2)
+         WHERE organization_id = $3 AND $1 = ANY(tags) AND NOT ($2 = ANY(tags))`,
+        [oldName, parsed.data.display_name, req.auth!.organizationId],
+      );
+    }
     res.json({ instance: safeInstance(r.rows[0]) });
   } catch (e) {
     console.error(e);

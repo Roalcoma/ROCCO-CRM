@@ -33,6 +33,11 @@ export const useAuthStore = defineStore('auth', () => {
     return (user.value?.permissions ?? []).includes(module);
   }
 
+  // Acceso limitado a ciertos números / pipelines (lo asigna un admin con acceso completo)
+  const limitedPipelines = computed(() => (user.value?.scope?.pipelines ?? null) !== null);
+  const limitedNumbers   = computed(() => (user.value?.scope?.wa ?? null) !== null);
+  const fullAccess = computed(() => !limitedPipelines.value && !limitedNumbers.value && (user.value?.scope?.social ?? true));
+
   function setSession(u: User) {
     user.value = u;
     preferences.value = u.preferences ?? {};
@@ -44,6 +49,8 @@ export const useAuthStore = defineStore('auth', () => {
     setToken(res.token);
     setAgencyToken(res.agencyToken ?? null); // siempre actualizar: limpia token previo si no aplica
     setSession(res.user);
+    // /me trae además el acceso (números / pipelines) que no viene en la respuesta del login
+    api.get<User>('/me').then(setSession).catch(() => {});
   }
 
   async function register(payload: { organizationName: string; name: string; email: string; password: string }) {
@@ -83,5 +90,5 @@ export const useAuthStore = defineStore('auth', () => {
     window.location.replace('/login');
   }
 
-  return { user, preferences, isAuthenticated, isAdmin, isImpersonated, impersonatedClient, can, login, register, init, savePreferences, logout };
+  return { user, preferences, isAuthenticated, isAdmin, isImpersonated, impersonatedClient, can, limitedPipelines, limitedNumbers, fullAccess, login, register, init, savePreferences, logout };
 });

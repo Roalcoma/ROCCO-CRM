@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue';
 import {
   Plus, Search, Copy, Check, ArrowLeft,
-  UserRound, Shield, Mail, Lock, Users, Trash2, Pencil, KeyRound,
+  UserRound, Shield, Mail, Lock, Users, Trash2, Pencil, KeyRound, Eye,
 } from 'lucide-vue-next';
 import { api } from '../../api';
 import { useDialog } from '../../composables/useDialog';
@@ -30,6 +30,46 @@ async function load() {
     api.get<{ used: number; max: number | null }>('/users/limit'),
   ]);
 }
+
+// ── Acceso por número de WhatsApp y pipeline ─────────────────────────────────
+// Separa equipos en el mismo CRM (p. ej. Ventas con un número y Reclutamiento con otro).
+// Solo lo edita un admin con acceso completo; el owner siempre ve todo.
+type WaNumber = { id: string; display_name: string; color: string | null };
+const numbers = ref<WaNumber[]>([]);
+const pipelines = ref<{ id: string; name: string }[]>([]);
+async function loadAccessOptions() {
+  [numbers.value, pipelines.value] = await Promise.all([
+    api.get<{ numbers: WaNumber[] }>('/conversations/numbers').then(r => r.numbers).catch(() => []),
+    api.get<{ id: string; name: string }[]>('/pipelines').catch(() => []),
+  ]);
+}
+onMounted(loadAccessOptions);
+const showAccess = computed(() => auth.fullAccess && (numbers.value.length > 1 || pipelines.value.length > 1));
+const numberName = (id: string) => numbers.value.find(n => n.id === id)?.display_name ?? 'Número';
+const pipelineName = (id: string) => pipelines.value.find(p => p.id === id)?.name ?? 'Pipeline';
+// Resumen para la lista: "WhatsApp #2 · Pipeline de Ventas"; vacío = acceso completo
+function accessSummary(u: User): string {
+  const a = u.access;
+  if (!a || u.role === 'owner') return '';
+  const parts = [
+    ...(a.wa_instance_ids ? (a.wa_instance_ids.length ? a.wa_instance_ids.map(numberName) : ['Ningún número']) : []),
+    ...(a.pipeline_ids ? (a.pipeline_ids.length ? a.pipeline_ids.map(pipelineName) : ['Ningún pipeline']) : []),
+    ...(a.social ? [] : ['Sin Instagram']),
+  ];
+  return parts.join(' · ');
+}
+type AccessForm = { allNumbers: boolean; wa: string[]; allPipelines: boolean; pipelines: string[]; social: boolean };
+const blankAccess = (): AccessForm => ({ allNumbers: true, wa: [], allPipelines: true, pipelines: [], social: true });
+const accessForm = ref<AccessForm>(blankAccess());
+function toggleIn(list: string[], id: string) {
+  const i = list.indexOf(id);
+  if (i >= 0) list.splice(i, 1); else list.push(id);
+}
+const accessPayload = () => ({
+  wa_instance_ids: accessForm.value.allNumbers ? null : accessForm.value.wa,
+  pipeline_ids: accessForm.value.allPipelines ? null : accessForm.value.pipelines,
+  social: accessForm.value.social,
+});
 onMounted(async () => { try { await load(); } finally { loading.value = false; } });
 
 const roleLabel: Record<string, string> = { owner: 'Owner', admin: 'Administrador', member: 'Miembro' };
@@ -81,6 +121,7 @@ function openCreate() {
   if (atLimit.value) return;
   editing.value = null; error.value = '';
   form.value = { name: '', email: '', password: '', role: 'member', permissions: [] };
+  accessForm.value = blankAccess();
   view.value = 'form';
 }
 function openEdit(u: User) {
@@ -90,6 +131,12 @@ function openEdit(u: User) {
     name: u.name, email: u.email, password: '',
     role: u.role === 'admin' ? 'admin' : 'member',
     permissions: [...(u.permissions ?? [])],
+  };
+  const a = u.access;
+  accessForm.value = {
+    allNumbers: !a?.wa_instance_ids, wa: [...(a?.wa_instance_ids ?? [])],
+    allPipelines: !a?.pipeline_ids, pipelines: [...(a?.pipeline_ids ?? [])],
+    social: a?.social ?? true,
   };
   view.value = 'form';
 }
@@ -107,12 +154,14 @@ async function save() {
     if (editing.value) {
       const patch: Record<string, unknown> = { name: form.value.name };
       if (editing.value.role !== 'owner') { patch.role = form.value.role; patch.permissions = perms; }
+      if (editing.value.role !== 'owner' && showAccess.value) patch.access = accessPayload();
       if (form.value.password) patch.password = form.value.password;
       await api.patch(`/users/${editing.value.id}`, patch);
     } else {
       await api.post('/users', {
         name: form.value.name, email: form.value.email,
         password: form.value.password, role: form.value.role, permissions: perms,
+        ...(showAccess.value ? { access: accessPayload() } : {}),
       });
     }
     await load();
@@ -246,6 +295,9 @@ async function remove(u: User) {
                     <span v-for="k in u.permissions" :key="k" class="rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">{{ moduleLabel(k) }}</span>
                   </div>
                   <span v-else class="text-xs text-slate-300">Sin acceso</span>
+                  <p v-if="accessSummary(u)" class="mt-1 flex items-center gap-1 text-[11px] font-medium text-slate-500">
+                    <Eye class="h-3 w-3 flex-shrink-0" /> Solo: {{ accessSummary(u) }}
+                  </p>
                 </td>
                 <td class="px-4 py-3.5 sm:px-6" @click.stop>
                   <div class="flex items-center justify-end gap-1 opacity-60 transition-opacity group-hover:opacity-100">
@@ -449,7 +501,49 @@ async function remove(u: User) {
 
               <div v-else-if="!editing || editing.role !== 'owner'" class="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
                 <Shield class="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-500" />
-                <p class="text-sm text-amber-700 leading-relaxed">Los administradores tienen acceso completo a todos los módulos sin necesidad de asignar permisos individuales.</p>
+                <p class="text-sm text-amber-700 leading-relaxed">Los administradores tienen acceso a todos los módulos. Lo que ven dentro de ellos se limita abajo, en «Números y pipelines».</p>
+              </div>
+
+              <!-- Sección: Números de WhatsApp y pipelines que ve (también para administradores) -->
+              <div v-if="showAccess && (!editing || editing.role !== 'owner')" class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div class="mb-1 flex items-center gap-2.5 border-b border-slate-100 pb-4">
+                  <Eye class="h-4 w-4 text-primary" />
+                  <h4 class="text-[13px] font-semibold text-slate-700">Números y pipelines</h4>
+                </div>
+                <p class="mb-4 text-xs text-slate-400">
+                  Qué conversaciones, leads, contactos y avisos ve. Los contactos que solo son de un número o pipeline que no tiene, no los ve.
+                </p>
+
+                <div v-if="numbers.length > 1" class="mb-5">
+                  <p class="uf-label">WhatsApp</p>
+                  <label class="mb-2 flex cursor-pointer items-center gap-2.5 text-[13px] text-slate-700">
+                    <input v-model="accessForm.allNumbers" type="checkbox" class="h-4 w-4 accent-[#F69008]" /> Todos los números
+                  </label>
+                  <div v-if="!accessForm.allNumbers" class="space-y-1.5 pl-6">
+                    <label v-for="n in numbers" :key="n.id" class="flex cursor-pointer items-center gap-2.5 text-[13px] text-slate-700">
+                      <input type="checkbox" class="h-4 w-4 accent-[#F69008]" :checked="accessForm.wa.includes(n.id)" @change="toggleIn(accessForm.wa, n.id)" />
+                      <span class="h-2.5 w-2.5" :style="{ backgroundColor: n.color ?? '#4A5566' }"></span>
+                      {{ n.display_name }}
+                    </label>
+                  </div>
+                </div>
+
+                <div v-if="pipelines.length > 1" class="mb-5">
+                  <p class="uf-label">Pipelines</p>
+                  <label class="mb-2 flex cursor-pointer items-center gap-2.5 text-[13px] text-slate-700">
+                    <input v-model="accessForm.allPipelines" type="checkbox" class="h-4 w-4 accent-[#F69008]" /> Todos los pipelines
+                  </label>
+                  <div v-if="!accessForm.allPipelines" class="space-y-1.5 pl-6">
+                    <label v-for="p in pipelines" :key="p.id" class="flex cursor-pointer items-center gap-2.5 text-[13px] text-slate-700">
+                      <input type="checkbox" class="h-4 w-4 accent-[#F69008]" :checked="accessForm.pipelines.includes(p.id)" @change="toggleIn(accessForm.pipelines, p.id)" />
+                      {{ p.name }}
+                    </label>
+                  </div>
+                </div>
+
+                <label class="flex cursor-pointer items-center gap-2.5 text-[13px] text-slate-700">
+                  <input v-model="accessForm.social" type="checkbox" class="h-4 w-4 accent-[#F69008]" /> Ve los mensajes de Instagram y Messenger
+                </label>
               </div>
 
             </div>

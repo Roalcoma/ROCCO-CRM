@@ -10,6 +10,8 @@ export interface AuthClaims {
   agencyAdminId?: string;
   // users.token_version al emitirlo; si no coincide la sesión está cerrada. Ausente = 0.
   tv?: number;
+  // Solo en req.auth (lo pone requireAuth desde la sesión); nunca se firma en el token
+  access?: import('../access.ts').Access;
 }
 
 export function signToken(claims: AuthClaims): string {

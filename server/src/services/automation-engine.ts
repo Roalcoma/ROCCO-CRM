@@ -522,6 +522,8 @@ export async function executeRun(runId: string): Promise<void> {
           orgId, audience: 'all', type: 'system', bellType: 'automation',
           title: notifTitle, body: notifBody, entityType: 'automation_run', entityId: runId,
           data: { contactId: run.contact_id },
+          // Solo a quien ve el número del chat que disparó el flujo (access.ts)
+          waInstanceId: run.wa_instance_id,
         });
         stepData[step.id] = { sent: true };
         currentStep = i + 1;
@@ -789,7 +791,7 @@ async function logOutboundWa(orgId: string, phone: string, message: string, medi
     [(message || (media?.type === 'video' ? '🎥 Video' : media ? '📷 Imagen' : '')).slice(0, 100), convId],
   );
   broadcast(orgId, 'message:new', {
-    conversationId: convId,
+    conversationId: convId, waInstanceId: instanceId,
     message: {
       id: inserted.rows[0].id, conversation_id: convId, wa_message_id: null,
       direction: 'outbound', msg_type: msgType, body: message,

@@ -3,14 +3,17 @@ import { z } from 'zod';
 import { query, queryOne, pool } from '../db.ts';
 import { requireAdmin } from '../auth/perms.ts';
 import { audit } from '../audit.ts';
+import { accessOf, canUsePipeline, canUseNumber } from '../access.ts';
+import type { Request } from 'express';
 
 export const pipelinesRouter = Router();
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
-// Verifica que un pipeline pertenece al tenant. Devuelve el id o null.
-async function ownedPipeline(id: string, orgId: string) {
-  return queryOne<{ id: string }>('SELECT id FROM pipelines WHERE id=$1 AND organization_id=$2', [id, orgId]);
+// Verifica que un pipeline pertenece al tenant y el usuario tiene acceso. Devuelve el id o null.
+async function ownedPipeline(id: string, req: Request) {
+  if (!canUsePipeline(accessOf(req), id)) return null;
+  return queryOne<{ id: string }>('SELECT id FROM pipelines WHERE id=$1 AND organization_id=$2', [id, req.auth!.organizationId]);
 }
 
 // ── Listado con etapas anidadas ──────────────────────────────────────────────
@@ -26,13 +29,17 @@ pipelinesRouter.get('/', async (req, res) => {
      WHERE p.organization_id = $1 ORDER BY s.position`,
     [orgId],
   );
-  res.json(pipelines.map(p => ({ ...p, stages: stages.filter(s => s.pipeline_id === p.id) })));
+  // Solo los pipelines a los que el usuario tiene acceso
+  const a = accessOf(req);
+  res.json(pipelines.filter(p => canUsePipeline(a, p.id)).map(p => ({ ...p, stages: stages.filter(s => s.pipeline_id === p.id) })));
 });
 
 // ── Crear pipeline (con una etapa inicial para que no quede vacío) ────────────
 pipelinesRouter.post('/', async (req, res) => {
   const parsed = z.object({ name: z.string().min(1) }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues });
+  // Con acceso limitado a ciertos pipelines no se crean otros (no los vería)
+  if (accessOf(req).pipelines !== null) return res.status(403).json({ error: 'Tu acceso está limitado a ciertos pipelines; pide a un administrador que lo cree' });
   const [p] = await query<{ id: string; name: string }>(
     'INSERT INTO pipelines (organization_id, name) VALUES ($1,$2) RETURNING id, name',
     [req.auth!.organizationId, parsed.data.name],
@@ -44,6 +51,7 @@ pipelinesRouter.post('/', async (req, res) => {
 pipelinesRouter.put('/:id', async (req, res) => {
   const parsed = z.object({ name: z.string().min(1) }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues });
+  if (!canUsePipeline(accessOf(req), req.params.id)) return res.status(404).json({ error: 'Pipeline no encontrado' });
   const [row] = await query(
     'UPDATE pipelines SET name=$1, updated_at=now() WHERE id=$2 AND organization_id=$3 RETURNING id, name',
     [parsed.data.name, req.params.id, req.auth!.organizationId],
@@ -56,6 +64,7 @@ pipelinesRouter.put('/:id', async (req, res) => {
 // (el CASCADE se las llevaría por delante sin aviso).
 pipelinesRouter.delete('/:id', requireAdmin, async (req, res) => {
   const orgId = req.auth!.organizationId;
+  if (!canUsePipeline(accessOf(req), req.params.id as string)) return res.status(404).json({ error: 'Pipeline no encontrado' });
   const p = await queryOne<{ id: string; name: string }>(
     'SELECT id, name FROM pipelines WHERE id=$1 AND organization_id=$2', [req.params.id, orgId],
   );
@@ -71,7 +80,7 @@ pipelinesRouter.delete('/:id', requireAdmin, async (req, res) => {
 pipelinesRouter.post('/:id/stages', async (req, res) => {
   const parsed = z.object({ name: z.string().min(1) }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues });
-  if (!(await ownedPipeline(req.params.id, req.auth!.organizationId)))
+  if (!(await ownedPipeline(req.params.id, req)))
     return res.status(404).json({ error: 'Pipeline no encontrado' });
   const [{ next }] = await query<{ next: number }>(
     'SELECT COALESCE(MAX(position)+1,0) AS next FROM pipeline_stages WHERE pipeline_id=$1', [req.params.id],
@@ -87,7 +96,7 @@ pipelinesRouter.post('/:id/stages', async (req, res) => {
 pipelinesRouter.put('/:id/stages/order', async (req, res) => {
   const parsed = z.object({ order: z.array(z.string().uuid()) }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues });
-  if (!(await ownedPipeline(req.params.id, req.auth!.organizationId)))
+  if (!(await ownedPipeline(req.params.id, req)))
     return res.status(404).json({ error: 'Pipeline no encontrado' });
   // Actualiza position según el índice en el array. Whitelist implícita: solo etapas del pipeline.
   await Promise.all(
@@ -115,10 +124,11 @@ const bulkSchema = z.object({
 pipelinesRouter.put('/:id/edit', async (req, res) => {
   const parsed = bulkSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues });
-  if (!(await ownedPipeline(req.params.id, req.auth!.organizationId)))
+  if (!(await ownedPipeline(req.params.id, req)))
     return res.status(404).json({ error: 'Pipeline no encontrado' });
 
   const { name, stages, wa_instance_id } = parsed.data;
+  if (wa_instance_id && !canUseNumber(accessOf(req), wa_instance_id)) return res.status(400).json({ error: 'Número de WhatsApp no válido' });
   if (wa_instance_id) {
     const own = await queryOne('SELECT 1 FROM wa_settings WHERE id=$1 AND organization_id=$2', [wa_instance_id, req.auth!.organizationId]);
     if (!own) return res.status(400).json({ error: 'Número de WhatsApp no válido' });

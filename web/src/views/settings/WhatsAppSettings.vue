@@ -3,10 +3,13 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { Plus, Trash2, CheckCircle2, WifiOff, Loader2, QrCode, Star, MessageCircle, Settings2, Pencil } from 'lucide-vue-next';
 import { api } from '../../api';
+import { useAuthStore } from '../../stores/auth';
 import { useDialog } from '../../composables/useDialog';
 import type { WAInstance } from '../../types';
 import Spinner from '../../components/Spinner.vue';
 import { useWs } from '../../composables/useWs';
+
+const auth = useAuthStore();
 
 const { alert, confirm } = useDialog();
 const router = useRouter();
@@ -106,7 +109,7 @@ function statusInfo(s: string) {
         <p class="mt-0.5 text-sm text-slate-500">Conecta hasta 2 números de WhatsApp a tu CRM.</p>
       </div>
       <button
-        v-if="instances.length < 2"
+        v-if="instances.length < 2 && !auth.limitedNumbers"
         :disabled="creating"
         class="flex cursor-pointer items-center gap-1.5 rounded-lg bg-[#25D366] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60 hover:bg-[#1ea855] transition-colors"
         @click="addInstance"

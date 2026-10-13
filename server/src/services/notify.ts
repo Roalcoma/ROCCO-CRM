@@ -5,12 +5,15 @@
 // users.organization_id (org primaria, por compatibilidad). Para avisos de leads y mensajes solo
 // los que tienen permiso del módulo (opportunities / conversations); owner/admin siempre.
 // Las preferencias (notification_prefs) solo filtran el push; la campanita y el WS no cambian.
+// Acceso por número / pipeline (access.ts): el aviso solo llega a quien puede ver lo que avisa
+// (la conversación, la oportunidad o, si no hay ninguna, el contacto).
 
 import { pool } from '../db.ts';
 import { broadcast } from './ws-manager.ts';
 import { sendPush } from './push.ts';
 import { sendWebPushToUser } from './webpush.ts';
 import type { ModuleKey } from '../auth/perms.ts';
+import { canSeeConversation, canUsePipeline, contactScope, isRestricted, type Access } from '../access.ts';
 
 export type NotifyType =
   | 'new_lead' | 'new_message' | 'appointment_booked' | 'appointment_cancelled'
@@ -33,6 +36,8 @@ export interface NotifyInput {
   data?: Record<string, string | null | undefined>;
   // Tipo guardado en la campanita (por defecto `type`); los avisos antiguos guardan 'system'/'automation'
   bellType?: string;
+  // Número de WhatsApp del que trata el aviso cuando no hay conversationId (p. ej. paso de automatización)
+  waInstanceId?: string | null;
 }
 
 const PREF_BY_TYPE: Record<NotifyType, PrefKey> = {
@@ -112,12 +117,54 @@ export function messagePreview(msgType: string, body: string | null | undefined)
   return MEDIA_LABEL[msgType] ?? '📎 Archivo adjunto';
 }
 
-export async function notify(n: NotifyInput): Promise<void> {
-  const users = await recipients(n.orgId, n.audience, MODULE_BY_TYPE[n.type]);
-  if (!users.length) return;
+// Quita a los usuarios con acceso limitado (user_access) que no pueden ver aquello de lo que trata
+// el aviso: la conversación (o el número), si no la oportunidad, si no el contacto.
+async function filterByAccess(orgId: string, users: string[], data: Record<string, string>, waInstanceId?: string | null): Promise<string[]> {
+  const { rows: limited } = await pool.query<{ user_id: string; wa_instance_ids: string[] | null; pipeline_ids: string[] | null; social: boolean }>(
+    `SELECT ua.user_id, ua.wa_instance_ids, ua.pipeline_ids, ua.social
+     FROM user_access ua JOIN users u ON u.id = ua.user_id
+     WHERE ua.organization_id = $1 AND ua.user_id = ANY($2::uuid[]) AND u.role <> 'owner'`,
+    [orgId, users],
+  );
+  const accessBy = new Map<string, Access>(limited
+    .map(r => [r.user_id, { wa: r.wa_instance_ids, pipelines: r.pipeline_ids, social: r.social }] as [string, Access])
+    .filter(([, a]) => isRestricted(a)));
+  if (!accessBy.size) return users;
 
+  let conv: { channel: string | null; wa_instance_id: string | null } | null = null;
+  if (data.conversationId) {
+    conv = (await pool.query('SELECT channel, wa_instance_id FROM conversations WHERE id = $1', [data.conversationId])).rows[0] ?? null;
+  } else if (waInstanceId) {
+    conv = { channel: 'whatsapp', wa_instance_id: waInstanceId };
+  }
+  const pipelineId: string | null = !conv && data.opportunityId
+    ? (await pool.query('SELECT pipeline_id FROM opportunities WHERE id = $1', [data.opportunityId])).rows[0]?.pipeline_id ?? null
+    : null;
+
+  const keep: string[] = [];
+  for (const u of users) {
+    const a = accessBy.get(u);
+    if (!a) { keep.push(u); continue; }
+    if (conv) { if (canSeeConversation(a, conv)) keep.push(u); continue; }
+    if (pipelineId) { if (canUsePipeline(a, pipelineId)) keep.push(u); continue; }
+    if (data.contactId) {
+      const vals: unknown[] = [data.contactId];
+      const scope = contactScope(a, 'c.id', vals);
+      if ((await pool.query(`SELECT 1 FROM contacts c WHERE c.id = $1${scope}`, vals)).rowCount) keep.push(u);
+      continue;
+    }
+    keep.push(u);   // aviso general (WhatsApp caído, sistema…)
+  }
+  return keep;
+}
+
+export async function notify(n: NotifyInput): Promise<void> {
   const data: Record<string, string> = { type: n.type, orgId: n.orgId };
   for (const [k, v] of Object.entries(n.data ?? {})) if (v) data[k] = String(v);
+
+  let users = await recipients(n.orgId, n.audience, MODULE_BY_TYPE[n.type]);
+  if (users.length) users = await filterByAccess(n.orgId, users, data, n.waInstanceId);
+  if (!users.length) return;
 
   // Mensajes: sin fila en la campanita (se llenaría) y con antispam por conversación
   let targets = users;
@@ -134,13 +181,18 @@ export async function notify(n: NotifyInput): Promise<void> {
   }
   for (const u of targets) broadcast(n.orgId, 'notification:new', { userId: u, type: n.type, title: n.title, body: n.body, data });
 
-  // Push a los dispositivos de los que no lo desactivaron para esta org
-  const { rows } = await pool.query<{ token: string }>(
-    `SELECT t.token FROM push_tokens t
-     LEFT JOIN notification_prefs p ON p.user_id = t.user_id AND p.organization_id = $2
-     WHERE t.user_id = ANY($1::uuid[])
-       AND COALESCE((p.prefs ->> $3)::boolean, true)`,
+  // Push solo a los que no lo desactivaron para esta org (notification_prefs)
+  const { rows: off } = await pool.query<{ user_id: string }>(
+    `SELECT user_id FROM notification_prefs
+     WHERE organization_id = $2 AND user_id = ANY($1::uuid[]) AND (prefs ->> $3)::boolean = false`,
     [targets, n.orgId, PREF_BY_TYPE[n.type]],
+  );
+  const muted = new Set(off.map(r => r.user_id));
+  const pushTargets = targets.filter(u => !muted.has(u));
+  if (!pushTargets.length) return;
+  const { rows } = await pool.query<{ token: string }>(
+    `SELECT token FROM push_tokens WHERE user_id = ANY($1::uuid[])`,
+    [pushTargets],
   );
   sendPush(rows.map(r => r.token), {
     title: n.title, body: n.body, data,
@@ -149,7 +201,7 @@ export async function notify(n: NotifyInput): Promise<void> {
   });
   // Web Push (PWA): a los mismos usuarios con suscripciones de navegador
   const webUrl = URL_BY_TYPE[n.type]?.(data) ?? '/';
-  for (const userId of targets) {
+  for (const userId of pushTargets) {
     sendWebPushToUser(userId, { title: n.title, body: n.body ?? '', url: webUrl, tag: n.type })
       .catch((err) => console.error(JSON.stringify({ level: 'warn', msg: 'web push error', err: String(err) })));
   }

@@ -10,6 +10,7 @@ import type { Server } from 'http';
 import { verifyToken, type AuthClaims } from '../auth/tokens.ts';
 import { validateSession, onInvalidateUser, type SessionUser } from '../auth/session.ts';
 import type { ModuleKey } from '../auth/perms.ts';
+import { FULL_ACCESS, canUseNumber, canUsePipeline, type Access } from '../access.ts';
 
 interface WSClient {
   ws: WebSocket;
@@ -18,6 +19,7 @@ interface WSClient {
   claims: AuthClaims;
   role: string;
   permissions: string[];
+  access: Access;
 }
 
 const clients: Set<WSClient> = new Set();
@@ -70,6 +72,13 @@ function canReceive(client: WSClient, type: string, data: unknown): boolean {
     const target = (data as { userId?: unknown } | null)?.userId;
     return typeof target !== 'string' || target === client.userId;
   }
+  // Acceso por número / pipeline (access.ts): se filtran los eventos que lo indican. Los mensajes
+  // llevan waInstanceId; conversation:update lleva la fila (wa_instance_id, channel).
+  const d = (data ?? {}) as { waInstanceId?: unknown; wa_instance_id?: unknown; channel?: unknown; pipelineId?: unknown };
+  const wa = d.waInstanceId ?? d.wa_instance_id;
+  if (typeof wa === 'string' && !canUseNumber(client.access, wa)) return false;
+  if (typeof d.channel === 'string' && d.channel !== 'whatsapp' && !client.access.social) return false;
+  if (typeof d.pipelineId === 'string' && !canUsePipeline(client.access, d.pipelineId)) return false;
   if (client.role === 'owner' || client.role === 'admin') return true;
   const mod = MODULE_BY_PREFIX[prefix];
   return !mod || client.permissions.includes(mod);
@@ -78,6 +87,7 @@ function canReceive(client: WSClient, type: string, data: unknown): boolean {
 function applyUser(client: WSClient, user: SessionUser) {
   client.role = user.role;
   client.permissions = user.permissions;
+  client.access = user.access;
 }
 
 // Al borrar/cambiar a un usuario, se revalidan sus conexiones: se cierran si la sesión ya
@@ -109,7 +119,7 @@ export function initWS(httpServer: Server) {
 
     const client: WSClient = {
       ws, organizationId: claims.organizationId, userId: claims.userId, claims,
-      role: user.role, permissions: user.permissions,
+      role: user.role, permissions: user.permissions, access: user.access ?? FULL_ACCESS,
     };
     clients.add(client);
 

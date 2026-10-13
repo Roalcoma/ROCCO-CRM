@@ -931,3 +931,92 @@ test('WhatsApp: el disparador limitado a un número solo corre con los chats de 
 
   await db.query('DELETE FROM automation_rules WHERE id = ANY($1::uuid[])', [[recruit, sales]]);
 });
+
+// ── Acceso por número y pipeline: un usuario de Ventas no ve nada de Reclutamiento ──
+test('Acceso: usuario limitado a un número y un pipeline solo ve lo suyo (chats, leads, contactos, avisos)', async () => {
+  const inst1 = (await one('SELECT id FROM wa_settings WHERE organization_id = $1 AND instance_name = $2', [org.orgId, org.instance])).id;
+  const inst2 = await one(
+    `INSERT INTO wa_settings (organization_id, instance_name, display_name, is_default, session_status)
+     VALUES ($1, $2, 'Ventas acceso', false, 'connected') RETURNING id, webhook_secret, instance_name`,
+    [org.orgId, `flows-acc-${stamp}`],
+  );
+  const sales = (await api(org.token, 'POST', '/pipelines', { name: 'Ventas acceso' })).data;
+  const salesStage = (await api(org.token, 'GET', '/pipelines')).data.find((p: any) => p.id === sales.id).stages[0];
+  const rules = [
+    (await api(org.token, 'POST', '/automations', { name: 'Acc recl', trigger_type: 'whatsapp_new_message',
+      config: { trigger: { wa_instance_id: inst1 }, steps: [{ id: 's1', type: 'create_opportunity', pipeline_id: org.pipeline, stage_id: org.stage }] } })).data.id,
+    (await api(org.token, 'POST', '/automations', { name: 'Acc venta', trigger_type: 'whatsapp_new_message',
+      config: { trigger: { wa_instance_id: inst2.id }, steps: [{ id: 's1', type: 'create_opportunity', pipeline_id: sales.id, stage_id: salesStage.id }] } })).data.id,
+  ];
+
+  // Usuario de ventas (admin, como en VFS) limitado al número 2 y al pipeline de ventas
+  const email = `ventas-${stamp}@test.local`;
+  const created = await api(org.token, 'POST', '/users', {
+    name: 'Vendedor', email, password: 'ventas-12345', role: 'admin', permissions: [],
+    access: { wa_instance_ids: [inst2.id], pipeline_ids: [sales.id], social: false },
+  });
+  assert.equal(created.status, 201, JSON.stringify(created.data));
+  assert.deepEqual(created.data.access.wa_instance_ids, [inst2.id]);
+  const seller = (await api(null, 'POST', '/auth/login', { email, password: 'ventas-12345' })).data.token;
+  assert.ok(seller);
+
+  // Un chat nuevo por cada número
+  const inbound = (secret: string, instance: string, phone: string, name: string) => api(null, 'POST', `/wa/webhook/${secret}`, {
+    event: 'messages.upsert', instance,
+    data: { key: { remoteJid: `${phone}@s.whatsapp.net`, fromMe: false, id: `WA-${rnd()}${rnd()}` },
+      pushName: name, messageType: 'conversation', message: { conversation: 'Hola' }, messageTimestamp: Math.floor(Date.now() / 1000) },
+  });
+  const pRecruit = `58412${rnd()}`, pSales = `58426${rnd()}`;
+  await inbound(org.waSecret, org.instance, pRecruit, 'Rita Recluta');
+  await inbound(inst2.webhook_secret, inst2.instance_name, pSales, 'Victor Venta');
+  const cRecruit = await until('contacto reclutamiento', () => one(`SELECT * FROM contacts WHERE organization_id = $1 AND phone = $2`, [org.orgId, pRecruit]));
+  const cSales = await until('contacto ventas', () => one(`SELECT * FROM contacts WHERE organization_id = $1 AND phone = $2`, [org.orgId, pSales]));
+  // (la regla «Lead WhatsApp» del primer test no tiene número: también crea lead en el pipeline principal)
+  const salesOpp = await until('lead de ventas', () => one('SELECT id FROM opportunities WHERE contact_id = $1 AND pipeline_id = $2', [cSales.id, sales.id]));
+  const oppRecruit = await until('lead de reclutamiento', () => one('SELECT id FROM opportunities WHERE contact_id = $1', [cRecruit.id]));
+
+  // Etiqueta con el número de origen
+  assert.ok(cSales.tags.includes('Ventas acceso'), `tags: ${cSales.tags}`);
+  assert.ok(!cRecruit.tags.includes('Ventas acceso'));
+
+  // Bandeja y números
+  const convs = (await api(seller, 'GET', '/conversations?status=all&limit=100')).data.conversations;
+  assert.ok(convs.length > 0 && convs.every((c: any) => c.wa_instance_id === inst2.id), 'solo chats del número 2');
+  assert.deepEqual((await api(seller, 'GET', '/conversations/numbers')).data.numbers.map((n: any) => n.id), [inst2.id]);
+  const convRecruit = await one('SELECT id FROM conversations WHERE contact_id = $1', [cRecruit.id]);
+  assert.equal((await api(seller, 'GET', `/conversations/${convRecruit.id}/timeline`)).status, 404);
+  assert.equal((await api(seller, 'POST', `/conversations/${convRecruit.id}/messages`, { body: 'x' })).status, 404);
+
+  // Pipelines y leads
+  assert.deepEqual((await api(seller, 'GET', '/pipelines')).data.map((p: any) => p.id), [sales.id]);
+  assert.equal((await api(seller, 'POST', '/opportunities/query', { pipelineId: org.pipeline })).status, 404);
+  assert.equal((await api(seller, 'GET', `/opportunities/${oppRecruit.id}`)).status, 404);
+  assert.equal((await api(seller, 'POST', '/pipelines', { name: 'Otro' })).status, 403);
+
+  // Contactos
+  const contacts = (await api(seller, 'GET', '/contacts?limit=100')).data.data.map((c: any) => c.id);
+  assert.ok(contacts.includes(cSales.id));
+  assert.ok(!contacts.includes(cRecruit.id));
+  assert.equal((await api(seller, 'GET', `/contacts/${cRecruit.id}`)).status, 404);
+
+  // Automatizaciones: no ve la de reclutamiento ni puede ampliarse el acceso
+  const autos = (await api(seller, 'GET', '/automations')).data.map((r: any) => r.id);
+  assert.ok(autos.includes(rules[1]) && !autos.includes(rules[0]));
+  const me = (await api(seller, 'GET', '/me')).data;
+  assert.equal((await api(seller, 'PATCH', `/users/${me.id}`, { access: { wa_instance_ids: null, pipeline_ids: null, social: true } })).status, 403);
+
+  // Avisos: el lead de reclutamiento no le llega; el de ventas sí
+  await until('aviso del lead de ventas', () => one(
+    `SELECT 1 FROM notifications WHERE user_id = $1 AND type = 'new_lead' AND entity_id = $2`, [me.id, salesOpp.id]));
+  await until('aviso del lead de reclutamiento (a otros)', () => one(
+    `SELECT 1 FROM notifications WHERE type = 'new_lead' AND entity_id = $1`, [oppRecruit.id]));
+  const bell = await one(
+    `SELECT count(*)::int AS n FROM notifications WHERE user_id = $1 AND entity_id = $2`, [me.id, oppRecruit.id]);
+  assert.equal(bell.n, 0, 'el lead de reclutamiento no le llega');
+
+  // Quitar el límite (admin con acceso completo) devuelve todo
+  assert.equal((await api(org.token, 'PATCH', `/users/${me.id}`, { access: { wa_instance_ids: null, pipeline_ids: null, social: true } })).status, 200);
+  assert.ok((await api(seller, 'GET', '/pipelines')).data.length > 1);
+
+  await db.query('DELETE FROM automation_rules WHERE id = ANY($1::uuid[])', [rules]);
+});

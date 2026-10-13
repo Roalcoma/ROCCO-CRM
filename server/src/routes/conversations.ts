@@ -7,6 +7,8 @@ import { evolutionFor } from '../services/evolution.ts';
 import { broadcast } from '../services/ws-manager.ts';
 import { sendIgDm, sendFbMessage, sendFbPrivateReply, isOutsideWindow } from '../services/instagram.ts';
 import { normalizePhone } from '../phone.ts';
+import { accessOf, convScope, pipelineScope, canSeeConversation, canUseNumber } from '../access.ts';
+import type { Request } from 'express';
 
 export const conversationsRouter = Router();
 
@@ -30,6 +32,16 @@ async function getWACfg(orgId: string, instanceId?: string | null): Promise<WASe
   return res.rows[0] ?? null;
 }
 
+// La conversación si es de la org y el usuario puede verla (su número / Instagram); si no, null
+async function visibleConv(req: Request, id: string): Promise<{ id: string } | null> {
+  const r = await pool.query<{ id: string; channel: string | null; wa_instance_id: string | null }>(
+    'SELECT id, channel, wa_instance_id FROM conversations WHERE id = $1 AND organization_id = $2',
+    [id, req.auth!.organizationId],
+  );
+  const conv = r.rows[0];
+  return conv && canSeeConversation(accessOf(req), conv) ? conv : null;
+}
+
 // GET /api/conversations/numbers — números de WhatsApp de la org (para filtros y etiquetas; sin secretos)
 conversationsRouter.get('/numbers', async (req, res) => {
   const { rows } = await pool.query(
@@ -37,7 +49,9 @@ conversationsRouter.get('/numbers', async (req, res) => {
      WHERE organization_id = $1 ORDER BY is_default DESC, created_at`,
     [req.auth!.organizationId],
   );
-  res.json({ numbers: rows });
+  // Solo los números que el usuario tiene permitidos
+  const a = accessOf(req);
+  res.json({ numbers: rows.filter(n => canUseNumber(a, n.id)) });
 });
 
 // GET /api/conversations — lista con paginación
@@ -60,6 +74,9 @@ conversationsRouter.get('/', async (req, res) => {
     // Filtro por número de WhatsApp (los chats de Instagram/Messenger no tienen número y quedan fuera)
     if (wa_instance_id && /^[0-9a-f-]{36}$/i.test(wa_instance_id)) { where += ` AND c.wa_instance_id = $${i++}`; vals.push(wa_instance_id); }
     if (q) { where += ` AND (c.display_name ILIKE $${i} OR c.phone ILIKE $${i})`; vals.push(`%${q}%`); i++; }
+    // Acceso del usuario: solo sus números (e Instagram/Messenger si lo tiene)
+    where += convScope(accessOf(req), 'c', vals);
+    i = vals.length + 1;
 
     const result = await pool.query(
       `SELECT c.*,
@@ -86,16 +103,11 @@ conversationsRouter.get('/', async (req, res) => {
 // GET /api/conversations/:id/messages
 conversationsRouter.get('/:id/messages', async (req, res) => {
   try {
-    const orgId = req.auth!.organizationId;
     const { id } = req.params;
     const { limit = '50', before } = req.query as Record<string, string>;
 
-    // Verificar que la conversación pertenece a la org.
-    const conv = await pool.query(
-      'SELECT id FROM conversations WHERE id = $1 AND organization_id = $2',
-      [id, orgId],
-    );
-    if (!conv.rows[0]) return res.status(404).json({ error: 'Conversación no encontrada' });
+    // Verificar que la conversación pertenece a la org y el usuario la puede ver
+    if (!(await visibleConv(req, id))) return res.status(404).json({ error: 'Conversación no encontrada' });
 
     // Sin media_url: puede ser un data URI de ~1 MB cacheado; la media se sirve por /api/media/:id
     let sql = `SELECT ${MSG_COLS} FROM conv_messages WHERE conversation_id = $1`;
@@ -129,6 +141,7 @@ conversationsRouter.post('/:id/messages', async (req, res) => {
       [id, orgId],
     );
     if (!convRes.rows[0]) return res.status(404).json({ error: 'Conversación no encontrada' });
+    if (!canSeeConversation(accessOf(req), convRes.rows[0])) return res.status(404).json({ error: 'Conversación no encontrada' });
 
     const { wa_chat_id: chatId, channel, social_account_id, wa_instance_id } = convRes.rows[0];
 
@@ -257,6 +270,7 @@ conversationsRouter.patch('/:id', async (req, res) => {
     const orgId = req.auth!.organizationId;
     const { id } = req.params;
     const { status, contact_id, display_name, starred } = req.body;
+    if (!(await visibleConv(req, id))) return res.status(404).json({ error: 'Conversación no encontrada' });
 
     const fields: string[] = [];
     const vals: unknown[] = [];
@@ -286,11 +300,11 @@ conversationsRouter.get('/:id/timeline', async (req, res) => {
     const orgId = req.auth!.organizationId;
     const { id } = req.params;
 
-    const convRes = await pool.query<{ contact_id: string | null }>(
-      'SELECT contact_id FROM conversations WHERE id = $1 AND organization_id = $2',
+    const convRes = await pool.query<{ contact_id: string | null; channel: string | null; wa_instance_id: string | null }>(
+      'SELECT contact_id, channel, wa_instance_id FROM conversations WHERE id = $1 AND organization_id = $2',
       [id, orgId],
     );
-    if (!convRes.rows[0]) return res.status(404).json({ error: 'Conversación no encontrada' });
+    if (!convRes.rows[0] || !canSeeConversation(accessOf(req), convRes.rows[0])) return res.status(404).json({ error: 'Conversación no encontrada' });
 
     const contactId = convRes.rows[0].contact_id;
 
@@ -313,13 +327,15 @@ conversationsRouter.get('/:id/timeline', async (req, res) => {
       );
       for (const a of appts.rows) items.push({ type: 'appointment', ts: a.created_at, data: a });
 
+      const oppVals: unknown[] = [contactId, orgId];
+      const oppScope = pipelineScope(accessOf(req), 'o.pipeline_id', oppVals);
       const opps = await pool.query(
         `SELECT o.id, o.pipeline_id, o.stage_id, o.title, o.status, o.value, o.created_at, s.name AS stage_name, s.color AS stage_color, p.name AS pipeline_name
          FROM opportunities o
          LEFT JOIN pipeline_stages s ON s.id = o.stage_id
          LEFT JOIN pipelines p ON p.id = o.pipeline_id
-         WHERE o.contact_id = $1 AND o.organization_id = $2 ORDER BY o.created_at`,
-        [contactId, orgId],
+         WHERE o.contact_id = $1 AND o.organization_id = $2${oppScope} ORDER BY o.created_at`,
+        oppVals,
       );
       for (const o of opps.rows) items.push({ type: 'opportunity', ts: o.created_at, data: o });
     }
@@ -337,6 +353,7 @@ conversationsRouter.delete('/:id', async (req, res) => {
   try {
     const orgId = req.auth!.organizationId;
     const { id } = req.params;
+    if (!(await visibleConv(req, id))) return res.status(404).json({ error: 'Conversación no encontrada' });
     await pool.query(
       'DELETE FROM conversations WHERE id = $1 AND organization_id = $2',
       [id, orgId],
@@ -354,16 +371,19 @@ conversationsRouter.get('/:id/contact', async (req, res) => {
     const orgId = req.auth!.organizationId;
     const { id } = req.params;
 
-    const convRes = await pool.query<{ contact_id: string | null; phone: string | null; display_name: string }>(
-      'SELECT contact_id, phone, display_name FROM conversations WHERE id = $1 AND organization_id = $2',
+    const convRes = await pool.query<{ contact_id: string | null; phone: string | null; display_name: string; channel: string | null; wa_instance_id: string | null }>(
+      'SELECT contact_id, phone, display_name, channel, wa_instance_id FROM conversations WHERE id = $1 AND organization_id = $2',
       [id, orgId],
     );
-    if (!convRes.rows[0]) return res.status(404).json({ error: 'Conversación no encontrada' });
+    if (!convRes.rows[0] || !canSeeConversation(accessOf(req), convRes.rows[0])) return res.status(404).json({ error: 'Conversación no encontrada' });
+
 
     const contactId = convRes.rows[0].contact_id;
     // Pasamos el teléfono real de la conversación para mostrarlo en el panel
     const convPhone = convRes.rows[0].phone;
     if (!contactId) return res.json({ contact: null, opportunities: [], appointments: [], conv_phone: convPhone });
+    const oppVals: unknown[] = [contactId, orgId];
+    const oppScope = pipelineScope(accessOf(req), 'o.pipeline_id', oppVals);
 
     const [cRes, oRes, aRes] = await Promise.all([
       pool.query('SELECT * FROM contacts WHERE id = $1 AND organization_id = $2', [contactId, orgId]),
@@ -372,8 +392,8 @@ conversationsRouter.get('/:id/contact', async (req, res) => {
          FROM opportunities o
          LEFT JOIN pipeline_stages s ON s.id = o.stage_id
          LEFT JOIN pipelines p ON p.id = o.pipeline_id
-         WHERE o.contact_id = $1 AND o.organization_id = $2 ORDER BY o.created_at DESC`,
-        [contactId, orgId],
+         WHERE o.contact_id = $1 AND o.organization_id = $2${oppScope} ORDER BY o.created_at DESC`,
+        oppVals,
       ),
       pool.query(
         `SELECT * FROM appointments WHERE contact_id = $1 AND organization_id = $2 ORDER BY start_at DESC LIMIT 5`,
@@ -410,13 +430,15 @@ conversationsRouter.post('/', async (req, res) => {
     if (!waPhone) return res.status(400).json({ error: 'Número de teléfono inválido' });
     const chatId = `${waPhone}@s.whatsapp.net`;
 
-    // Número por el que se abre el chat: el elegido (de esta org) o el principal
+    // Número por el que se abre el chat: el elegido (de esta org) o el principal, entre los permitidos
+    const access = accessOf(req);
     const inst = await pool.query<{ id: string }>(
       `SELECT id FROM wa_settings WHERE organization_id = $1
+         AND ($3::uuid[] IS NULL OR id = ANY($3::uuid[]))
        ORDER BY (id = $2::uuid) IS TRUE DESC, is_default DESC, created_at LIMIT 1`,
-      [orgId, wa_instance_id && /^[0-9a-f-]{36}$/i.test(wa_instance_id) ? wa_instance_id : null],
+      [orgId, wa_instance_id && /^[0-9a-f-]{36}$/i.test(wa_instance_id) ? wa_instance_id : null, access.wa],
     );
-    if (!inst.rows[0]) return res.status(503).json({ error: 'WhatsApp no configurado' });
+    if (!inst.rows[0]) return res.status(access.wa ? 403 : 503).json({ error: access.wa ? 'No tienes ningún número de WhatsApp asignado' : 'WhatsApp no configurado' });
 
     // Si ya existe en ese número, vincular el contacto solo si no tenía uno asignado
     const result = await pool.query<{ id: string }>(

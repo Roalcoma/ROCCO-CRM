@@ -5,8 +5,25 @@ import { findContactByPhone, lockPhone, withTransaction } from '../phone.ts';
 import { logActivity } from '../activity.ts';
 import { audit } from '../audit.ts';
 import { fireTagTrigger, fireContactCreatedTrigger } from '../services/automation-engine.ts';
+import { accessOf, contactScope, pipelineScope, isRestricted } from '../access.ts';
 
 export const contactsRouter = Router();
+
+// Acceso por número / pipeline (access.ts): un contacto que solo es de otro equipo no se ve
+contactsRouter.param('id', async (req, res, next, id: string) => {
+  try {
+    const a = accessOf(req);
+    if (!isRestricted(a) || !/^[0-9a-f-]{36}$/i.test(id)) return next();
+    const vals: unknown[] = [id, req.auth!.organizationId];
+    const scope = contactScope(a, 'c.id', vals);
+    const [exists, visible] = await Promise.all([
+      queryOne('SELECT 1 FROM contacts c WHERE c.id = $1 AND c.organization_id = $2', [id, req.auth!.organizationId]),
+      queryOne(`SELECT 1 FROM contacts c WHERE c.id = $1 AND c.organization_id = $2${scope}`, vals),
+    ]);
+    if (exists && !visible) return res.status(404).json({ error: 'Contacto no encontrado' });
+    next();
+  } catch (e) { next(e); }
+});
 
 // Limpia el teléfono que se GUARDA (quita espacios y el + inicial; el formato que escribió el usuario se
 // respeta). Para comparar/deduplicar se usa phone.ts (columna phone_digits, últimos 10 dígitos).
@@ -42,13 +59,14 @@ const contactSchema = z.object({
 // GET /contacts/export/csv
 contactsRouter.get('/export/csv', async (req, res) => {
   const orgId = req.auth!.organizationId;
+  const exportVals: unknown[] = [orgId];
   const rows = await query(
     `SELECT first_name, last_name, email, phone, email_secondary, phone_secondary,
             company, position, address, city, country, birthday,
             linkedin, twitter, instagram, website, source, status,
             array_to_string(tags, '|') AS tags, notes, created_at
-     FROM contacts WHERE organization_id = $1 ORDER BY created_at DESC`,
-    [orgId],
+     FROM contacts WHERE organization_id = $1${contactScope(accessOf(req), 'contacts.id', exportVals)} ORDER BY created_at DESC`,
+    exportVals,
   );
 
   const headers = [
@@ -127,6 +145,8 @@ contactsRouter.post('/import/csv', async (req, res) => {
 // GET /contacts/stats — resumen estadístico del tenant
 contactsRouter.get('/stats', async (req, res) => {
   const orgId = req.auth!.organizationId;
+  const vals: unknown[] = [orgId];
+  const scope = contactScope(accessOf(req), 'contacts.id', vals);
 
   const [totals, bySource] = await Promise.all([
     queryOne<{ total: string; active: string; inactive: string; new_this_month: string; companies: string }>(
@@ -137,16 +157,16 @@ contactsRouter.get('/stats', async (req, res) => {
          count(*) FILTER (WHERE date_trunc('month', created_at) = date_trunc('month', now())) AS new_this_month,
          count(DISTINCT company) FILTER (WHERE company IS NOT NULL AND company <> '') AS companies
        FROM contacts
-       WHERE organization_id = $1`,
-      [orgId],
+       WHERE organization_id = $1${scope}`,
+      vals,
     ),
     query<{ source: string | null; count: string }>(
       `SELECT source, count(*) AS count
        FROM contacts
-       WHERE organization_id = $1
+       WHERE organization_id = $1${scope}
        GROUP BY source
        ORDER BY count DESC`,
-      [orgId],
+      vals,
     ),
   ]);
 
@@ -208,6 +228,10 @@ contactsRouter.get('/', async (req, res) => {
     params.push(`%${companyFilter}%`);
     idx++;
   }
+
+  // Acceso del usuario: sin los contactos que solo son de otro equipo
+  const scope = contactScope(accessOf(req), 'contacts.id', params);
+  if (scope) { conditions.push(scope.replace(/^ AND /, '')); idx = params.length + 1; }
 
   const whereClause = conditions.join(' AND ');
 
@@ -314,6 +338,8 @@ contactsRouter.post('/', async (req, res) => {
 contactsRouter.get('/:id', async (req, res) => {
   const orgId = req.auth!.organizationId;
   const id    = req.params.id;
+  const oppVals: unknown[] = [id, orgId];
+  const oppScope = pipelineScope(accessOf(req), 'o.pipeline_id', oppVals);
 
   const [row, opps, tasks, appointments, files] = await Promise.all([
     queryOne(
@@ -324,18 +350,18 @@ contactsRouter.get('/:id', async (req, res) => {
       `SELECT o.id, o.title, o.value, o.status, o.created_at, s.name AS stage_name
        FROM opportunities o
        JOIN pipeline_stages s ON s.id = o.stage_id
-       WHERE o.contact_id = $1 AND o.organization_id = $2
+       WHERE o.contact_id = $1 AND o.organization_id = $2${oppScope}
        ORDER BY o.created_at DESC`,
-      [id, orgId],
+      oppVals,
     ),
     query(
       `SELECT t.id, t.title, t.status, t.priority, t.due_at, t.created_at,
               o.title AS opportunity_title
        FROM tasks t
        JOIN opportunities o ON o.id = t.opportunity_id
-       WHERE o.contact_id = $1 AND t.organization_id = $2
+       WHERE o.contact_id = $1 AND t.organization_id = $2${oppScope}
        ORDER BY t.created_at DESC`,
-      [id, orgId],
+      oppVals,
     ),
     query(
       `SELECT a.*, u.name AS user_name FROM appointments a
@@ -357,27 +383,29 @@ contactsRouter.get('/:id', async (req, res) => {
 
 // GET /:id/opportunities — oportunidades asociadas
 contactsRouter.get('/:id/opportunities', async (req, res) => {
+  const vals: unknown[] = [req.params.id, req.auth!.organizationId];
   const rows = await query(
     `SELECT o.id, o.title, o.value, o.status, o.created_at, s.name AS stage_name
      FROM opportunities o
      JOIN pipeline_stages s ON s.id = o.stage_id
-     WHERE o.contact_id = $1 AND o.organization_id = $2
+     WHERE o.contact_id = $1 AND o.organization_id = $2${pipelineScope(accessOf(req), 'o.pipeline_id', vals)}
      ORDER BY o.created_at DESC`,
-    [req.params.id, req.auth!.organizationId],
+    vals,
   );
   res.json(rows);
 });
 
 // GET /:id/tasks — tareas ligadas a oportunidades de este contacto
 contactsRouter.get('/:id/tasks', async (req, res) => {
+  const vals: unknown[] = [req.params.id, req.auth!.organizationId];
   const rows = await query(
     `SELECT t.id, t.title, t.status, t.priority, t.due_at, t.created_at,
             o.title AS opportunity_title
      FROM tasks t
      JOIN opportunities o ON o.id = t.opportunity_id
-     WHERE o.contact_id = $1 AND t.organization_id = $2
+     WHERE o.contact_id = $1 AND t.organization_id = $2${pipelineScope(accessOf(req), 'o.pipeline_id', vals)}
      ORDER BY t.created_at DESC`,
-    [req.params.id, req.auth!.organizationId],
+    vals,
   );
   res.json(rows);
 });

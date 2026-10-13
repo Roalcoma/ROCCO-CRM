@@ -138,6 +138,14 @@ waWebhookRouter.post('/:secret', async (req, res) => {
       if (direction === 'inbound') {
         // Si no hay nombre, usar el teléfono como nombre para contactos desconocidos
         contactId = await linkContact(orgId, convId, phone, senderName || phone || displayName);
+        // Etiqueta con el nombre del número por el que escribió (p. ej. "WhatsApp #2")
+        if (contactId) {
+          await pool.query(
+            `UPDATE contacts c SET tags = array_append(c.tags, w.display_name)
+             FROM wa_settings w WHERE c.id = $1 AND w.id = $2 AND NOT (w.display_name = ANY(c.tags))`,
+            [contactId, instanceId],
+          );
+        }
         // Primer anuncio del que vino el contacto (no se pisa con clics posteriores)
         if (contactId && adRef) {
           await pool.query(`UPDATE contacts SET ad_source = $1 WHERE id = $2 AND ad_source IS NULL`, [adRef, contactId]);
@@ -155,7 +163,7 @@ waWebhookRouter.post('/:secret', async (req, res) => {
       }
 
       broadcast(orgId, 'message:new', {
-        conversationId: convId,
+        conversationId: convId, waInstanceId: instanceId,
         message: {
           id: finalMsgId, conversation_id: convId, wa_message_id: waId,
           direction, msg_type: msgType, body: body ?? null,

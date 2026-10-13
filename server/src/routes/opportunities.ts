@@ -8,8 +8,23 @@ import { logActivity } from '../activity.ts';
 import { audit } from '../audit.ts';
 import { broadcast } from '../services/ws-manager.ts';
 import { fireContactCreatedTrigger } from '../services/automation-engine.ts';
+import { accessOf, canUsePipeline, pipelineScope } from '../access.ts';
 
 export const opportunitiesRouter = Router();
+
+// Acceso por pipeline (access.ts): toda ruta con :id comprueba que la oportunidad esté en un
+// pipeline permitido; si no, responde como si no existiera.
+opportunitiesRouter.param('id', async (req, res, next, id: string) => {
+  try {
+    const a = accessOf(req);
+    if (a.pipelines === null || !/^[0-9a-f-]{36}$/i.test(id)) return next();
+    const o = await queryOne<{ pipeline_id: string }>(
+      'SELECT pipeline_id FROM opportunities WHERE id = $1 AND organization_id = $2', [id, req.auth!.organizationId]);
+    if (o && !canUsePipeline(a, o.pipeline_id)) return res.status(404).json({ error: 'Oportunidad no encontrada' });
+    next();
+  } catch (e) { next(e); }
+});
+const noPipeline = (res: import('express').Response) => res.status(404).json({ error: 'Pipeline no encontrado' });
 
 // SELECT base con contacto y responsable embebidos. En listados (kanban, CSV) el anuncio de origen va
 // sin la miniatura base64 (hasta 200 KB por lead); el detalle (GET /:id) la incluye.
@@ -106,9 +121,11 @@ async function invalidRefs(orgId: string, pipelineId: string, stageId: string, o
 
 // ── Lista simple (id + título) para selects ───────────────────────────────────
 opportunitiesRouter.get('/', async (req, res) => {
+  const vals: unknown[] = [req.auth!.organizationId];
+  const scope = pipelineScope(accessOf(req), 'pipeline_id', vals);
   const rows = await query<{ id: string; title: string }>(
-    `SELECT id, title FROM opportunities WHERE organization_id = $1 ORDER BY title`,
-    [req.auth!.organizationId],
+    `SELECT id, title FROM opportunities WHERE organization_id = $1${scope} ORDER BY title`,
+    vals,
   );
   res.json(rows);
 });
@@ -169,6 +186,7 @@ opportunitiesRouter.post('/query', async (req, res) => {
   const parsed = querySchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues });
   const q = parsed.data;
+  if (!canUsePipeline(accessOf(req), q.pipelineId)) return noPipeline(res);
   const { where, params, orderBy } = oppQueryParts(req.auth!.organizationId, q);
 
   if (q.limit === undefined) {
@@ -222,6 +240,7 @@ opportunitiesRouter.get('/search', async (req, res) => {
     params.push(`%${q}%`);
     where += ` AND (o.title ILIKE $3 OR o.business_name ILIKE $3 OR c.first_name ILIKE $3 OR c.last_name ILIKE $3 OR c.email ILIKE $3 OR c.phone ILIKE $3)`;
   }
+  where += pipelineScope(accessOf(req), 'o.pipeline_id', params);
   const rows = await query(
     `SELECT o.id, o.title, o.status, o.value, o.pipeline_id, o.stage_id, o.contact_id,
             p.name AS pipeline_name, s.name AS stage_name, s.color AS stage_color,
@@ -268,6 +287,7 @@ opportunitiesRouter.post('/', async (req, res) => {
   const parsed = oppSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues });
   const o = parsed.data;
+  if (!canUsePipeline(accessOf(req), o.pipeline_id)) return noPipeline(res);
   const orgId = req.auth!.organizationId;
   const actorId = req.auth!.userId;
   const refError = await invalidRefs(orgId, o.pipeline_id, o.stage_id, o.owner_id);
@@ -312,6 +332,7 @@ opportunitiesRouter.patch('/:id', async (req, res) => {
   const existing = await queryOne<{ contact_id: string | null; title: string; value: number; status: string; stage_id: string; pipeline_id: string }>(
     'SELECT contact_id, title, value, status, stage_id, pipeline_id FROM opportunities WHERE id=$1 AND organization_id=$2', [req.params.id, orgId]);
   if (!existing) return res.status(404).json({ error: 'Oportunidad no encontrada' });
+  if (typeof data.pipeline_id === 'string' && !canUsePipeline(accessOf(req), data.pipeline_id)) return noPipeline(res);
   if ('pipeline_id' in data || 'stage_id' in data || data.owner_id) {
     const refError = await invalidRefs(orgId,
       (data.pipeline_id as string | undefined) ?? existing.pipeline_id,
@@ -460,6 +481,7 @@ opportunitiesRouter.get('/:id/appointments', async (req, res) => {
 opportunitiesRouter.get('/export/csv', async (req, res) => {
   const pipelineId = req.query.pipelineId;
   if (typeof pipelineId !== 'string') return res.status(400).json({ error: 'Falta pipelineId' });
+  if (!canUsePipeline(accessOf(req), pipelineId)) return noPipeline(res);
   const rows = await query<any>(
     `${LIST_SELECT} WHERE o.organization_id = $1 AND o.pipeline_id = $2 ORDER BY o.created_at`,
     [req.auth!.organizationId, pipelineId],
@@ -470,6 +492,7 @@ opportunitiesRouter.get('/export/csv', async (req, res) => {
 opportunitiesRouter.post('/export/csv', async (req, res) => {
   const parsed = querySchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues });
+  if (!canUsePipeline(accessOf(req), parsed.data.pipelineId)) return noPipeline(res);
   const { where, params, orderBy } = oppQueryParts(req.auth!.organizationId, parsed.data);
   const rows = await query<any>(`${LIST_SELECT} WHERE ${where.join(' AND ')} ORDER BY ${orderBy}`, params);
   await sendCsv(res, parsed.data.pipelineId, rows);
@@ -494,6 +517,7 @@ opportunitiesRouter.post('/import', async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues });
   const orgId = req.auth!.organizationId;
   const { pipelineId } = parsed.data;
+  if (!canUsePipeline(accessOf(req), pipelineId)) return noPipeline(res);
 
   const stages = await query<{ id: string; name: string; position: number }>(
     `SELECT s.id, s.name, s.position FROM pipeline_stages s JOIN pipelines p ON p.id=s.pipeline_id

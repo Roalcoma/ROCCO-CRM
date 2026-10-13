@@ -33,7 +33,9 @@ meRouter.get('/', async (req, res) => {
     [req.auth!.userId],
   );
   if (!u) return res.status(404).json({ error: 'Usuario no encontrado' });
-  res.json(publicUser(u));
+  // Acceso en la org de la sesión (números / pipelines; access.ts): la interfaz oculta lo que no ve
+  const a = req.auth!.access;
+  res.json({ ...publicUser(u), scope: { wa: a?.wa ?? null, pipelines: a?.pipelines ?? null, social: a?.social ?? true } });
 });
 
 // Lista de organizaciones del usuario (multi-org: actualmente solo la propia).

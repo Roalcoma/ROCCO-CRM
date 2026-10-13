@@ -11,6 +11,10 @@ export interface User {
   avatarColor?: string | null;
   createdAt?: string;
   mustChangePassword?: boolean;
+  // Lista de usuarios: números / pipelines que ve (null = todos)
+  access?: { wa_instance_ids: string[] | null; pipeline_ids: string[] | null; social: boolean };
+  // /me: el acceso propio en la org de la sesión (null = todos)
+  scope?: { wa: string[] | null; pipelines: string[] | null; social: boolean };
 }
 
 // Anuncio de Meta (click-to-WhatsApp) del que llegó un lead.

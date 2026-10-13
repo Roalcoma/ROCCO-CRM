@@ -2,8 +2,30 @@ import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { query, queryOne } from '../db.ts';
 import { requireAdmin } from '../auth/perms.ts';
+import { accessOf, canUseNumber, canUsePipeline, type Access } from '../access.ts';
 
 export const automationsRouter = Router();
+
+// Acceso por número / pipeline (access.ts): una regla es del equipo que ve su número (disparador) y
+// los pipelines donde crea leads; las de Instagram, de quien ve Instagram. Las demás, de todos.
+type RuleCfg = { trigger?: { wa_instance_id?: string }; steps?: { pipeline_id?: string }[] };
+function ruleVisible(a: Access, triggerType: string, config: unknown): boolean {
+  const cfg = (config ?? {}) as RuleCfg;
+  const wa = cfg.trigger?.wa_instance_id;
+  if (wa && !canUseNumber(a, wa)) return false;
+  if (triggerType === 'ig_comment_received' && !a.social) return false;
+  return (cfg.steps ?? []).every(st => !st.pipeline_id || canUsePipeline(a, st.pipeline_id));
+}
+
+automationsRouter.param('id', async (req, res, next, id: string) => {
+  try {
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return next();
+    const r = await queryOne<{ trigger_type: string; config: unknown }>(
+      'SELECT trigger_type, config FROM automation_rules WHERE id = $1 AND organization_id = $2', [id, req.auth!.organizationId]);
+    if (r && !ruleVisible(accessOf(req), r.trigger_type, r.config)) return res.status(404).json({ error: 'Automatización no encontrada' });
+    next();
+  } catch (e) { next(e); }
+});
 
 // Validación de la config: solo se comprueban los campos con reglas (el resto de cada paso se conserva tal cual).
 // send_whatsapp acepta un adjunto: media_id (de automation_media de la org) y media_type opcional.
@@ -19,6 +41,9 @@ const configSchema = z.object({ steps: z.array(stepSchema).optional() }).passthr
 async function parseConfig(req: Request, res: Response, config: unknown): Promise<Record<string, unknown> | null> {
   const parsed = configSchema.safeParse(config ?? {});
   if (!parsed.success) { res.status(400).json({ error: parsed.error.issues }); return null; }
+  if (!ruleVisible(accessOf(req), String(req.body?.trigger_type ?? ''), parsed.data)) {
+    res.status(403).json({ error: 'La automatización usa un número o un pipeline al que no tienes acceso' }); return null;
+  }
   const mediaIds = [...new Set((parsed.data.steps ?? []).map(s => s.media_id).filter((m): m is string => !!m))];
   if (mediaIds.length) {
     const found = await query<{ id: string }>(
@@ -40,7 +65,8 @@ automationsRouter.get('/', async (req, res) => {
        ORDER BY created_at ASC`,
       [req.auth!.organizationId],
     );
-    res.json(rows);
+    const a = accessOf(req);
+    res.json(rows.filter(r => ruleVisible(a, r.trigger_type, r.config)));
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: 'Error al cargar automatizaciones' });

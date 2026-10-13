@@ -33,7 +33,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
     .then(user => {
       if (!user) return res.status(401).json({ error: 'Sesión cerrada. Vuelve a iniciar sesión.' });
       // Rol fresco de la BD (el del JWT puede ser de hace semanas)
-      req.auth = { ...claims, role: user.role };
+      req.auth = { ...claims, role: user.role, access: user.access };
       next();
     })
     .catch(next);

@@ -6,11 +6,13 @@
 // hasta CACHE_MS en llegar a las demás (hoy hay una sola).
 import { queryOne } from '../db.ts';
 import type { AuthClaims } from './tokens.ts';
+import { loadAccess, type Access } from '../access.ts';
 
 export interface SessionUser {
   role: string;
   permissions: string[];
   tokenVersion: number;
+  access: Access;   // números y pipelines que ve en esta organización (access.ts)
 }
 
 const CACHE_MS = 60_000;
@@ -39,6 +41,7 @@ async function load(c: AuthClaims): Promise<SessionUser | null> {
     role: row.role,
     permissions: Array.isArray(row.permissions) ? (row.permissions as string[]) : [],
     tokenVersion: row.token_version ?? 0,
+    access: await loadAccess(c.userId, c.organizationId, row.role),
   };
 }
 

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query } from '../db.ts';
 import { orgTimezone, isTodaySql } from '../org-tz.ts';
+import { accessOf, contactScope, pipelineScope } from '../access.ts';
 
 export const dashboardRouter = Router();
 
@@ -8,6 +9,13 @@ dashboardRouter.get('/summary', async (req, res) => {
   const orgId = req.auth!.organizationId;
   // "Hoy" en la zona de la organización (el servidor corre en UTC)
   const tz = await orgTimezone(orgId);
+  // Acceso del usuario (access.ts): solo sus pipelines y sus contactos
+  const access = accessOf(req);
+  const scoped = (build: (vals: unknown[]) => string) => { const vals: unknown[] = [orgId]; return { sql: build(vals), vals }; };
+  const cScope = scoped(v => contactScope(access, 'contacts.id', v));
+  const oScope = scoped(v => pipelineScope(access, 'pipeline_id', v));
+  const ooScope = scoped(v => pipelineScope(access, 'o.pipeline_id', v));
+  const pScope = scoped(v => pipelineScope(access, 'p.id', v));
 
   const [
     contactsRows,
@@ -20,15 +28,15 @@ dashboardRouter.get('/summary', async (req, res) => {
   ] = await Promise.all([
     // contacts count
     query<{ n: string }>(
-      'SELECT count(*) AS n FROM contacts WHERE organization_id = $1',
-      [orgId],
+      `SELECT count(*) AS n FROM contacts WHERE organization_id = $1${cScope.sql}`,
+      cScope.vals,
     ),
     // open opportunities + pipeline value
     query<{ open_opps: string; pipeline_value: string }>(
       `SELECT count(*) FILTER (WHERE status='open') AS open_opps,
               coalesce(sum(value) FILTER (WHERE status='open'), 0) AS pipeline_value
-       FROM opportunities WHERE organization_id = $1`,
-      [orgId],
+       FROM opportunities WHERE organization_id = $1${oScope.sql}`,
+      oScope.vals,
     ),
     // tasks stats
     query<{ today: string; overdue: string }>(
@@ -45,21 +53,21 @@ dashboardRouter.get('/summary', async (req, res) => {
               coalesce(sum(o.value) FILTER (WHERE o.status = 'open'), 0) AS value,
               count(o.id) AS total_count
        FROM pipeline_stages s
-       JOIN pipelines p ON p.id = s.pipeline_id AND p.organization_id = $1
+       JOIN pipelines p ON p.id = s.pipeline_id AND p.organization_id = $1${pScope.sql}
        LEFT JOIN opportunities o ON o.stage_id = s.id
        GROUP BY s.id, s.name, s.position
        ORDER BY s.position`,
-      [orgId],
+      pScope.vals,
     ),
     // recent opportunities (last 6)
     query<{ id: string; title: string; value: string; status: string; stage_name: string; created_at: string }>(
       `SELECT o.id, o.title, o.value, o.status, s.name AS stage_name, o.created_at
        FROM opportunities o
        JOIN pipeline_stages s ON s.id = o.stage_id
-       WHERE o.organization_id = $1
+       WHERE o.organization_id = $1${ooScope.sql}
        ORDER BY o.created_at DESC
        LIMIT 6`,
-      [orgId],
+      ooScope.vals,
     ),
     // tasks due today
     query<{ id: string; title: string; priority: string; status: string; due_at: string }>(
@@ -79,9 +87,9 @@ dashboardRouter.get('/summary', async (req, res) => {
          count(*) AS count,
          coalesce(sum(value), 0) AS value
        FROM opportunities
-       WHERE organization_id = $1
+       WHERE organization_id = $1${oScope.sql}
        GROUP BY status`,
-      [orgId],
+      oScope.vals,
     ),
   ]);
 
