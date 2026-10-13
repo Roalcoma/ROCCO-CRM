@@ -96,6 +96,14 @@ html {
   background: var(--color-canvas);
 }
 
+/* iPhone hace zoom al enfocar campos con letra < 16px: en móvil los campos van a 16px */
+@media (max-width: 767px) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  select,
+  textarea,
+  [contenteditable='true'] { font-size: 16px !important; }
+}
+
 h1, h2, .font-display {
   font-family: var(--font-display);
   letter-spacing: -0.015em;
