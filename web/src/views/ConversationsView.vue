@@ -5,8 +5,9 @@ import {
   Search, Plus, X, Send, Phone, Check, CheckCheck, Clock, FileText, Mic,
   MessageCircle, RefreshCw, Mail, Tag, CalendarDays, Briefcase, UserCircle2,
   ChevronRight, StickyNote, Trash2, MoreVertical, Play, Pause,
-  Inbox, MessageSquare, Star, CheckCircle, XCircle, ExternalLink,
+  Inbox, MessageSquare, Star, CheckCircle, XCircle, ExternalLink, PhoneCall,
 } from 'lucide-vue-next';
+import { waCallLink } from '../phone';
 import { api } from '../api';
 import { useDialog } from '../composables/useDialog';
 import { hideMobileTabBar } from '../composables/useMobileNav';
@@ -946,6 +947,12 @@ async function syncNames() {
               :href="`tel:+${contactBundle?.contact?.phone || activeConv.phone}`"
               class="cursor-pointer rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary" title="Llamar">
               <Phone class="h-4 w-4" />
+            </a>
+            <a v-if="activeConv.channel !== 'instagram_dm' && activeConv.channel !== 'facebook_dm' && waCallLink(contactBundle?.contact?.phone || activeConv.phone)"
+              :href="waCallLink(contactBundle?.contact?.phone || activeConv.phone)!" target="_blank" rel="noopener"
+              class="cursor-pointer rounded-lg p-2 text-slate-400 transition-colors hover:bg-emerald-50 hover:text-[#1ea855]"
+              title="Llamar por WhatsApp (desde tu WhatsApp)" aria-label="Llamar por WhatsApp">
+              <PhoneCall class="h-4 w-4" />
             </a>
             <button class="cursor-pointer rounded-lg p-2 transition-colors hover:bg-slate-100" :class="showContactPanel ? 'text-primary' : 'text-slate-400 hover:text-slate-700'" title="Mostrar/ocultar contacto" @click="showContactPanel = !showContactPanel">
               <UserCircle2 class="h-4 w-4" />

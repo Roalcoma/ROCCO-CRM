@@ -4,8 +4,9 @@ import { useRoute, useRouter } from 'vue-router';
 import {
   ArrowLeft, Mail, Phone, Edit2, Check, X, CalendarDays, MapPin,
   Building2, Briefcase, Globe, Linkedin, Twitter, Instagram,
-  Tag, StickyNote, Cake, Trash2, ExternalLink, ChevronRight, ChevronDown, MessageCircle,
+  Tag, StickyNote, Cake, Trash2, ExternalLink, ChevronRight, ChevronDown, MessageCircle, PhoneCall,
 } from 'lucide-vue-next';
+import { waCallLink } from '../phone';
 import { api } from '../api';
 import { useDialog } from '../composables/useDialog';
 import type { Contact, Appointment } from '../types';
@@ -281,6 +282,15 @@ const tabs = [
                 class="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 py-1.5 text-xs font-medium text-slate-600 hover:border-primary hover:text-primary transition-colors"
               >
                 <Phone class="h-3.5 w-3.5" /> Llamar
+              </a>
+              <a
+                v-if="waCallLink(contact.phone)"
+                :href="waCallLink(contact.phone)!"
+                target="_blank" rel="noopener"
+                class="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 py-1.5 text-xs font-medium text-slate-600 hover:border-[#25D366] hover:text-[#1ea855] transition-colors"
+                title="Abre el chat en tu WhatsApp; ahí toca el ícono de llamada"
+              >
+                <PhoneCall class="h-3.5 w-3.5" /> WhatsApp
               </a>
               <a
                 v-if="contact.email"

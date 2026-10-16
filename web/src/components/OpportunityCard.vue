@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { Phone, Mail, StickyNote, PanelRightOpen, Tag, MessageCircle, Globe, ChevronDown } from 'lucide-vue-next';
+import { Phone, PhoneCall, Mail, StickyNote, PanelRightOpen, Tag, MessageCircle, Globe, ChevronDown } from 'lucide-vue-next';
+import { waCallLink } from '../phone';
 import type { Opportunity } from '../types';
 import type { CardConfig } from '../cardConfig';
 import AppointmentBadge from './AppointmentBadge.vue';
@@ -131,6 +132,10 @@ const nameInitials = (n: string) => n.split(' ').map(w => w[0]).slice(0, 2).join
       </button>
       <a v-if="opp.contact_phone" :href="`tel:${opp.contact_phone}`" class="cursor-pointer rounded-md p-1.5 transition-colors hover:bg-slate-100 hover:text-primary" title="Llamar" @click.stop>
         <Phone class="h-4 w-4" />
+      </a>
+      <!-- Llamar por WhatsApp: abre el chat en el WhatsApp del agente; ahí toca el ícono de llamada -->
+      <a v-if="waCallLink(opp.contact_phone)" :href="waCallLink(opp.contact_phone)!" target="_blank" rel="noopener" class="cursor-pointer rounded-md p-1.5 transition-colors hover:bg-emerald-50 hover:text-[#1ea855]" title="Llamar por WhatsApp" aria-label="Llamar por WhatsApp" @click.stop>
+        <PhoneCall class="h-4 w-4" />
       </a>
       <a v-if="opp.contact_email" :href="`mailto:${opp.contact_email}`" class="cursor-pointer rounded-md p-1.5 transition-colors hover:bg-slate-100 hover:text-primary" title="Enviar email" @click.stop>
         <Mail class="h-4 w-4" />
