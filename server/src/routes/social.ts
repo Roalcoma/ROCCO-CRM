@@ -295,9 +295,15 @@ socialPublicRouter.get('/facebook/callback', async (req, res) => {
         access_token: string;
         instagram_business_account?: { id: string };
       }>;
+      error?: { message: string };
     };
 
     const pages = pagesJson.data ?? [];
+    // Sin páginas: el usuario no marcó ninguna en el diálogo de Meta (o no es admin de ninguna)
+    if (!pages.length) {
+      console.error('Meta /me/accounts sin páginas:', pagesJson.error ?? 'lista vacía');
+      return res.redirect(`${frontendBase}/settings/social?error=no_pages`);
+    }
     for (const page of pages) {
       const pageToken = page.access_token ?? longToken;
       const picture = page.picture?.data?.url ?? null;

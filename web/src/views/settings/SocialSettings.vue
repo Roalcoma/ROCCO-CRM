@@ -99,6 +99,8 @@ onMounted(() => {
     showToast('Autorización cancelada', 'error');
   } else if (route.query.error === 'oauth_state') {
     showToast('El enlace de conexión caducó o no es válido. Inténtalo de nuevo.', 'error');
+  } else if (route.query.error === 'no_pages') {
+    showToast('Meta no compartió ninguna página. Vuelve a conectar y marca la página en el paso «Elegir páginas».', 'error');
   } else if (route.query.error) {
     showToast('Error al conectar con Facebook', 'error');
   }
