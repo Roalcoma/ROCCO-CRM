@@ -301,7 +301,11 @@ socialPublicRouter.get('/facebook/callback', async (req, res) => {
     const pages = pagesJson.data ?? [];
     // Sin páginas: el usuario no marcó ninguna en el diálogo de Meta (o no es admin de ninguna)
     if (!pages.length) {
-      console.error('Meta /me/accounts sin páginas:', pagesJson.error ?? 'lista vacía');
+      // Diagnóstico: qué permisos concedió realmente el usuario y quién es
+      const permsJson = await fetch(`${META_BASE}/me/permissions?access_token=${longToken}`).then((r) => r.json()).catch(() => null);
+      const meJson = await fetch(`${META_BASE}/me?fields=id,name&access_token=${longToken}`).then((r) => r.json()).catch(() => null);
+      console.error('Meta /me/accounts sin páginas:', pagesJson.error ?? 'lista vacía',
+        '| usuario:', JSON.stringify(meJson), '| permisos:', JSON.stringify(permsJson?.data ?? permsJson));
       return res.redirect(`${frontendBase}/settings/social?error=no_pages`);
     }
     for (const page of pages) {
