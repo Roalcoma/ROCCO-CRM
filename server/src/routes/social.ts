@@ -132,6 +132,8 @@ socialRouter.get('/facebook/auth-url', requireAdmin, async (req, res) => {
     'pages_read_engagement',
     'pages_messaging',         // Messenger y respuesta privada a comentarios
     'public_profile',
+    // Páginas dentro de un portafolio comercial: solo si el permiso está activado en la app (si no, Meta rechaza el login)
+    ...(process.env.META_BUSINESS_SCOPE === 'true' ? ['business_management'] : []),
   ].join(',');
 
   const url = new URL('https://www.facebook.com/v19.0/dialog/oauth');
@@ -298,9 +300,25 @@ socialPublicRouter.get('/facebook/callback', async (req, res) => {
       error?: { message: string };
     };
 
-    const pages = pagesJson.data ?? [];
+    type MetaPage = NonNullable<typeof pagesJson.data>[number];
+    const pages: MetaPage[] = pagesJson.data ?? [];
+
+    // Páginas de un portafolio comercial no salen en /me/accounts: se buscan por /me/businesses
+    const bizJson = await fetch(
+      `${META_BASE}/me/businesses?fields=owned_pages{id,name,picture,access_token},client_pages{id,name,picture,access_token}&access_token=${longToken}`,
+    ).then((r) => r.json()).catch(() => null) as { data?: Array<{ owned_pages?: { data?: MetaPage[] }; client_pages?: { data?: MetaPage[] } }> } | null;
+    for (const biz of bizJson?.data ?? []) {
+      for (const p of [...(biz.owned_pages?.data ?? []), ...(biz.client_pages?.data ?? [])]) {
+        if (p.access_token && !pages.some((x) => x.id === p.id)) pages.push(p);
+      }
+    }
+
     // Sin páginas: el usuario no marcó ninguna en el diálogo de Meta (o no es admin de ninguna)
     if (!pages.length) {
+      // Páginas que el usuario eligió en el diálogo (granular_scopes.target_ids)
+      const dbgJson = await fetch(`${META_BASE}/debug_token?input_token=${longToken}&access_token=${META_APP_ID}|${META_APP_SECRET}`)
+        .then((r) => r.json()).catch(() => null);
+      console.error('Meta granular_scopes:', JSON.stringify(dbgJson?.data?.granular_scopes ?? dbgJson), '| businesses:', JSON.stringify(bizJson));
       // Diagnóstico: qué permisos concedió realmente el usuario y quién es
       const permsJson = await fetch(`${META_BASE}/me/permissions?access_token=${longToken}`).then((r) => r.json()).catch(() => null);
       const meJson = await fetch(`${META_BASE}/me?fields=id,name&access_token=${longToken}`).then((r) => r.json()).catch(() => null);
