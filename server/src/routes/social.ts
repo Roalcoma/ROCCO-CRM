@@ -135,6 +135,8 @@ socialRouter.get('/facebook/auth-url', requireAdmin, async (req, res) => {
     // Páginas dentro de un portafolio comercial: solo si el permiso está activado en la app (si no, Meta rechaza el login)
     ...(process.env.META_BUSINESS_SCOPE === 'true' ? ['business_management'] : []),
     ...(process.env.META_COMMENTS_SCOPE === 'true' ? ['pages_read_user_content'] : []),
+    // Publicaciones de los anuncios (ads_posts)
+    ...(process.env.META_ADS_SCOPE === 'true' ? ['ads_management'] : []),
   ].join(',');
 
   const url = new URL('https://www.facebook.com/v19.0/dialog/oauth');
