@@ -125,7 +125,7 @@ socialRouter.get('/facebook/auth-url', requireAdmin, async (req, res) => {
   const redirectUri = `${env.publicUrl}/api/social/facebook/callback`;
   // Solo lo que usa el CRM con páginas de Facebook (Messenger y comentarios); Instagram va por su propio login.
   // Lead Ads (leads_retrieval, pages_manage_ads) queda para cuando haga falta: exige su propio caso de uso en Meta.
-  // pages_read_user_content no está habilitado en el caso de uso de la app y Meta rechaza el login entero si se pide.
+  // pages_read_user_content (leer comentarios) solo si está activado en el caso de uso de la app: si no, Meta rechaza el login entero.
   const scopes = [
     'pages_show_list',
     'pages_manage_metadata',   // suscribir la página al webhook
@@ -134,6 +134,7 @@ socialRouter.get('/facebook/auth-url', requireAdmin, async (req, res) => {
     'public_profile',
     // Páginas dentro de un portafolio comercial: solo si el permiso está activado en la app (si no, Meta rechaza el login)
     ...(process.env.META_BUSINESS_SCOPE === 'true' ? ['business_management'] : []),
+    ...(process.env.META_COMMENTS_SCOPE === 'true' ? ['pages_read_user_content'] : []),
   ].join(',');
 
   const url = new URL('https://www.facebook.com/v19.0/dialog/oauth');
