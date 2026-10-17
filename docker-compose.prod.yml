@@ -34,6 +34,9 @@ services:
       META_BUSINESS_SCOPE:       ${META_BUSINESS_SCOPE:-}
       META_COMMENTS_SCOPE:       ${META_COMMENTS_SCOPE:-}
       META_ADS_SCOPE:            ${META_ADS_SCOPE:-}
+      # El servidor no tiene salida IPv6 y Node, al alternar IPv4/IPv6 con 250 ms por intento,
+      # cortaba las conexiones lentas a Meta (ETIMEDOUT intermitente): siempre IPv4.
+      NODE_OPTIONS:              --dns-result-order=ipv4first --no-network-family-autoselection
       ALLOW_PUBLIC_SIGNUP:       ${ALLOW_PUBLIC_SIGNUP:-}
       APP_URL:                   ${APP_URL:-${PUBLIC_URL}}
       GOOGLE_CLIENT_ID:          ${GOOGLE_CLIENT_ID:-}
