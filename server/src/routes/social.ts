@@ -336,17 +336,19 @@ socialPublicRouter.get('/facebook/callback', async (req, res) => {
       // Guardar como Facebook page
       await pool.query(
         `INSERT INTO social_connections
-           (organization_id, platform, page_id, page_name, page_picture, access_token, token_expires_at, status)
-         VALUES ($1, 'facebook', $2, $3, $4, $5, $6, 'active')
+           (organization_id, platform, page_id, page_name, page_picture, access_token, token_expires_at, status, user_access_token)
+         VALUES ($1, 'facebook', $2, $3, $4, $5, $6, 'active', $7)
          ON CONFLICT (organization_id, platform, page_id) DO UPDATE SET
            page_name = EXCLUDED.page_name,
            page_picture = EXCLUDED.page_picture,
            access_token = EXCLUDED.access_token,
            token_expires_at = EXCLUDED.token_expires_at,
+           user_access_token = EXCLUDED.user_access_token,
            status = 'active',
            updated_at = NOW()`,
-        // El token de página obtenido de un token de usuario de larga duración no caduca
-        [orgId, page.id, page.name, picture, encryptSecret(pageToken), null],
+        // El token de página obtenido de un token de usuario de larga duración no caduca.
+        // El de usuario (~60 días) sirve para buscar los anuncios en las cuentas publicitarias.
+        [orgId, page.id, page.name, picture, encryptSecret(pageToken), null, encryptSecret(longToken)],
       );
 
       // Suscribir la página: Messenger y comentarios (feed). Instagram se conecta aparte con su propio login.
@@ -383,7 +385,7 @@ socialRouter.delete('/connections/:id', requireAdmin, async (req, res) => {
 
     await pool.query(
       // El token se borra al desconectar (política de privacidad y requisitos de Meta)
-      `UPDATE social_connections SET status = 'disconnected', access_token = '', updated_at = NOW() WHERE id = $1`,
+      `UPDATE social_connections SET status = 'disconnected', access_token = '', user_access_token = NULL, updated_at = NOW() WHERE id = $1`,
       [id],
     );
     res.json({ ok: true });

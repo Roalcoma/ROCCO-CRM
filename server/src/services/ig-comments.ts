@@ -91,6 +91,41 @@ export function isRateLimitError(err: { code?: number } | undefined | null): boo
 // borra a los 30 días (retention.ts). Debe ser menor que esa retención o un comentario viejo se repetiría.
 export const IG_COMMENT_MAX_AGE_DAYS = 14;
 
+// Los comentarios de anuncios solo se procesan si tienen menos de esto: es la ventana en que Meta
+// deja mandar el DM, y evita que el primer ciclo dispare el bot sobre semanas de comentarios viejos.
+export const IG_AD_COMMENT_MAX_AGE_DAYS = 7;
+
+// Los anuncios no salen en /me/media: se buscan en las cuentas publicitarias con el token de usuario
+// guardado al conectar Facebook (ads_management). Caché por organización: la API de anuncios es más estricta.
+const FB_GRAPH = `${process.env.META_GRAPH_URL ?? 'https://graph.facebook.com'}/v21.0`;
+const AD_MEDIA_TTL_MS = 30 * 60_000;
+const adMediaCache = new Map<string, { ids: string[]; at: number }>();
+export async function adMediaIds(orgId: string): Promise<string[]> {
+  const hit = adMediaCache.get(orgId);
+  if (hit && Date.now() - hit.at < AD_MEDIA_TTL_MS) return hit.ids;
+  const { rows } = await pool.query<{ user_access_token: string }>(
+    `SELECT user_access_token FROM social_connections
+     WHERE organization_id = $1 AND platform = 'facebook' AND status = 'active' AND user_access_token IS NOT NULL`,
+    [orgId],
+  );
+  const ids = new Set<string>();
+  for (const { user_access_token: ut } of rows) {
+    const accts = await get<{ data?: { id: string }[] }>(`${FB_GRAPH}/me/adaccounts?fields=id&limit=50&access_token=${ut}`);
+    if (accts.error) { console.error(`[ig-comments] cuentas publicitarias (org ${orgId}): ${accts.error.message}`); continue; }
+    for (const a of accts.data ?? []) {
+      const status = encodeURIComponent('["ACTIVE"]');
+      const ads = await get<{ data?: { creative?: { effective_instagram_media_id?: string } }[] }>(
+        `${FB_GRAPH}/${a.id}/ads?fields=creative{effective_instagram_media_id}&effective_status=${status}&limit=100&access_token=${ut}`,
+      );
+      if (ads.error) { console.error(`[ig-comments] anuncios de ${a.id}: ${ads.error.message}`); continue; }
+      for (const ad of ads.data ?? []) if (ad.creative?.effective_instagram_media_id) ids.add(ad.creative.effective_instagram_media_id);
+    }
+  }
+  adMediaCache.set(orgId, { ids: [...ids], at: Date.now() });
+  if (ids.size) console.log(`[ig-comments] org ${orgId}: ${ids.size} anuncio(s) activo(s) con publicación de Instagram`);
+  return [...ids];
+}
+
 // Filtra por organización (tests); sin argumento recorre todas las conexiones activas.
 export async function pollIgComments(orgId?: string): Promise<void> {
   const { rows } = await pool.query<Conn & { comments_polled_at: Date | null }>(
@@ -134,17 +169,33 @@ export async function pollIgComments(orgId?: string): Promise<void> {
       if (rateLimited(media.error)) continue;
       if (media.error) { console.error(`[ig-comments] media error conexión ${conn.id}:`, media.error.message); continue; }
 
+      // Publicaciones del perfil + publicaciones de los anuncios activos de la organización.
+      // Un anuncio puede ser de otra cuenta de Instagram de la misma organización: si este token
+      // no puede leerlo, Meta devuelve error y se salta en silencio.
+      const ownIds = new Set((media.data ?? []).map(m => m.id));
+      const adIds = (await adMediaIds(conn.organization_id).catch((e) => {
+        console.error(`[ig-comments] anuncios org ${conn.organization_id}: ${(e as Error).message}`);
+        return [] as string[];
+      })).filter(id => !ownIds.has(id));
+      const targets = [...ownIds].map(id => ({ id, ad: false })).concat(adIds.map(id => ({ id, ad: true })));
+
       let fired = 0;
       let limited = false;
-      for (const m of media.data ?? []) {
+      for (const m of targets) {
         const comments = await get<{ data?: (IgComment & { timestamp: string })[] }>(
           `${base}/${m.id}/comments?fields=id,text,timestamp,username,from&limit=50&access_token=${t}`,
         );
         if (rateLimited(comments.error)) { limited = true; break; }
-        if (comments.error) { console.error(`[ig-comments] comments error media ${m.id}:`, comments.error.message); continue; }
+        if (comments.error) {
+          if (!m.ad) console.error(`[ig-comments] comments error media ${m.id}:`, comments.error.message);
+          continue;
+        }
         for (const c of comments.data ?? []) {
-          if (new Date(c.timestamp) <= conn.comments_polled_at) continue;
-          if (Date.now() - new Date(c.timestamp).getTime() > IG_COMMENT_MAX_AGE_DAYS * 24 * 60 * 60_000) continue;
+          const age = Date.now() - new Date(c.timestamp).getTime();
+          if (m.ad) {
+            if (age > IG_AD_COMMENT_MAX_AGE_DAYS * 24 * 60 * 60_000) continue;
+          } else if (new Date(c.timestamp) <= conn.comments_polled_at) continue;
+          if (age > IG_COMMENT_MAX_AGE_DAYS * 24 * 60 * 60_000) continue;
           const author = c.from?.username ?? c.username;
           if (author && author === me.username) continue; // respuestas propias
           if (await handleIgComment(conn, c, m.id)) fired++;

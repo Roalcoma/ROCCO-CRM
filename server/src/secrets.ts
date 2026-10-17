@@ -7,7 +7,7 @@ import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 const PREFIX = 'enc:v1:';
 
 // Columnas que se descifran automáticamente al leerlas (db.ts)
-export const SECRET_COLUMNS = new Set(['google_refresh_token', 'zoom_refresh_token', 'access_token', 'evo_api_key']);
+export const SECRET_COLUMNS = new Set(['google_refresh_token', 'zoom_refresh_token', 'access_token', 'user_access_token', 'evo_api_key']);
 
 let cachedKey: Buffer | null | undefined;
 function key(): Buffer | null {
